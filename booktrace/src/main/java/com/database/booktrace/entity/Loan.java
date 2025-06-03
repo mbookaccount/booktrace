@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "loans")
@@ -27,9 +28,26 @@ public class Loan {
     @Column(name = "borrow_date", nullable = false)
     private LocalDate borrowDate;
 
+    @Column(name = "return_date", nullable = false)
+    private LocalDate returnDate;
+
     @Column(name = "extend_number")
     private Integer extendNumber = 0;
 
-    @Column(name = "return_date")
-    private LocalDate returnDate;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 } 
