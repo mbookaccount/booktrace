@@ -19,7 +19,7 @@ public class Book {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "library_id", nullable = false)
-    private Library library;
+    private Long libraryId;
 
     @Column(nullable = false)
     private String title;
@@ -38,6 +38,9 @@ public class Book {
 
     @Column(name = "available_amount")
     private Integer availableAmount = 0;
+
+    @Column(name = "borrow_count")
+    private Integer borrowCount = 0;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

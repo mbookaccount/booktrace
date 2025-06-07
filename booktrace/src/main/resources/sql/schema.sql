@@ -42,7 +42,7 @@ CREATE SEQUENCE passbook_seq
     NOCYCLE;
 
 -- 도서관 테이블 생성
-CREATE TABLE libraries (
+CREATE TABLE library (
     library_id NUMBER PRIMARY KEY,
     name VARCHAR2(100) NOT NULL
 );
@@ -70,9 +70,10 @@ CREATE TABLE books (
     published_date DATE,
     category VARCHAR2(50),
     available_amount NUMBER DEFAULT 0,
+    borrow_count NUMBER DEFAULT 0,  -- 대출 횟수
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP,
-    FOREIGN KEY (library_id) REFERENCES libraries(library_id)
+    FOREIGN KEY (library_id) REFERENCES library(library_id)
 );
 
 -- 대출 테이블 생성
@@ -80,19 +81,24 @@ CREATE TABLE loans (
     loan_id NUMBER PRIMARY KEY,
     user_id NUMBER NOT NULL,
     book_id NUMBER NOT NULL,
-    borrow_date DATE NOT NULL,
+    borrow_date TIMESTAMP NOT NULL,
     extend_number NUMBER DEFAULT 0,
-    return_date DATE,
+    return_date TIMESTAMP,
+    status VARCHAR2(20) DEFAULT 'NORMAL',
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (book_id) REFERENCES books(book_id)
 );
 
 -- 예약 테이블 생성
-CREATE TABLE reservations (
+CREATE TABLE reservation (
     resv_id NUMBER PRIMARY KEY,
     user_id NUMBER NOT NULL,
     book_id NUMBER NOT NULL,
     resv_date TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (book_id) REFERENCES books(book_id)
 );
@@ -102,8 +108,8 @@ CREATE TABLE reading_log (
     log_id NUMBER PRIMARY KEY,
     user_id NUMBER NOT NULL,
     book_id NUMBER NOT NULL,
-    borrow_date DATE NOT NULL,
-    return_date DATE,
+    borrow_date TIMESTAMP NOT NULL,
+    return_date TIMESTAMP,
     mileage NUMBER DEFAULT 0,
     total_mileage NUMBER DEFAULT 0,
     created_at TIMESTAMP NOT NULL,
@@ -112,40 +118,27 @@ CREATE TABLE reading_log (
     FOREIGN KEY (book_id) REFERENCES books(book_id)
 );
 
--- 주간 인기 도서 VIEW
-CREATE OR REPLACE VIEW weekly_popular_books AS
-SELECT 
-    b.book_id,
-    b.title,
-    CASE 
-        WHEN b.category = '컴퓨터' THEN '#FF6B6B'  -- 빨간색
-        WHEN b.category = '소설' THEN '#4ECDC4'    -- 청록색
-        WHEN b.category = '과학' THEN '#45B7D1'    -- 하늘색
-        WHEN b.category = '역사' THEN '#96CEB4'    -- 연두색
-        WHEN b.category = '예술' THEN '#FFEEAD'    -- 노란색
-        ELSE '#D3D3D3'                            -- 기본 회색
-    END as cover_color
-FROM books b
-JOIN reading_log rl ON b.book_id = rl.book_id
-WHERE rl.borrow_date >= CURRENT_DATE - INTERVAL '7' DAY
-GROUP BY b.book_id, b.title, b.category
-ORDER BY COUNT(rl.log_id) DESC;
+-- 대출 시 borrow_count 증가 트리거
+CREATE OR REPLACE TRIGGER trg_loan_borrow_count
+AFTER INSERT ON loans
+FOR EACH ROW
+BEGIN
+    UPDATE books
+    SET borrow_count = borrow_count + 1,
+        updated_at = SYSTIMESTAMP
+    WHERE book_id = :NEW.book_id;
+END;
+/
 
--- 월간 인기 도서 VIEW
-CREATE OR REPLACE VIEW monthly_popular_books AS
-SELECT 
-    b.book_id,
-    b.title,
-    CASE 
-        WHEN b.category = '컴퓨터' THEN '#FF6B6B'  -- 빨간색
-        WHEN b.category = '소설' THEN '#4ECDC4'    -- 청록색
-        WHEN b.category = '과학' THEN '#45B7D1'    -- 하늘색
-        WHEN b.category = '역사' THEN '#96CEB4'    -- 연두색
-        WHEN b.category = '예술' THEN '#FFEEAD'    -- 노란색
-        ELSE '#D3D3D3'                            -- 기본 회색
-    END as cover_color
-FROM books b
-JOIN reading_log rl ON b.book_id = rl.book_id
-WHERE rl.borrow_date >= CURRENT_DATE - INTERVAL '30' DAY
-GROUP BY b.book_id, b.title, b.category
-ORDER BY COUNT(rl.log_id) DESC;
+-- 반납 시 borrow_count 감소 트리거
+CREATE OR REPLACE TRIGGER trg_loan_return_count
+AFTER UPDATE OF return_date ON loans
+FOR EACH ROW
+WHEN (NEW.return_date IS NOT NULL AND OLD.return_date IS NULL)
+BEGIN
+    UPDATE books
+    SET borrow_count = borrow_count - 1,
+        updated_at = SYSTIMESTAMP
+    WHERE book_id = :NEW.book_id;
+END;
+/

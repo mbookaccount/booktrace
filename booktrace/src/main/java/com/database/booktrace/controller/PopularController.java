@@ -1,6 +1,6 @@
 package com.database.booktrace.controller;
 
-import com.database.booktrace.dto.ErrorResponse;
+import com.database.booktrace.dto.response.ErrorResponse;
 import com.database.booktrace.dto.PopularBookDTO;
 import com.database.booktrace.service.PopularService;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -3,7 +3,6 @@ package com.database.booktrace.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -17,37 +16,21 @@ public class Loan {
     @Column(name = "loan_id")
     private Long loanId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_id", nullable = false)
-    private Book book;
+    @Column(name = "book_id", nullable = false)
+    private Long bookId;
 
     @Column(name = "borrow_date", nullable = false)
-    private LocalDate borrowDate;
+    private LocalDateTime borrowDate;
 
     @Column(name = "return_date", nullable = false)
-    private LocalDate returnDate;
+    private LocalDateTime returnDate;
 
     @Column(name = "extend_number")
     private Integer extendNumber = 0;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
+    @Column(name = "status", nullable = false)
+    private String status;
 } 

@@ -2,6 +2,7 @@ package com.database.booktrace.repository;
 
 import com.database.booktrace.dto.PopularBookDTO;
 import com.database.booktrace.util.DatabaseConnection;
+import oracle.jdbc.OracleTypes;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -16,36 +17,58 @@ public class PopularRepository {
     private DatabaseConnection databaseConnection;
 
     public List<PopularBookDTO> findWeeklyPopularBooks() {
-        String sql = "SELECT * FROM weekly_popular_books FETCH FIRST 10 ROWS ONLY";
-        return executePopularBooksQuery(sql);
-    }
-
-    public List<PopularBookDTO> findMonthlyPopularBooks() {
-        String sql = "SELECT * FROM monthly_popular_books FETCH FIRST 10 ROWS ONLY";
-        return executePopularBooksQuery(sql);
-    }
-
-    private List<PopularBookDTO> executePopularBooksQuery(String sql) {
-        List<PopularBookDTO> books = new ArrayList<>();
-
         try (Connection conn = databaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             CallableStatement cs = conn.prepareCall(
+                "{ call popular_package.get_weekly_popular_books(?) }"
+             )) {
 
-            ResultSet rs = pstmt.executeQuery();
+            cs.registerOutParameter(1, OracleTypes.CURSOR);
+            cs.execute();
 
+            List<PopularBookDTO> books = new ArrayList<>();
+            ResultSet rs = (ResultSet) cs.getObject(1);
             while (rs.next()) {
                 PopularBookDTO book = new PopularBookDTO();
                 book.setBookId(rs.getLong("book_id"));
                 book.setTitle(rs.getString("title"));
+                book.setAuthor(rs.getString("author"));
+                book.setPublisher(rs.getString("publisher"));
                 book.setCoverColor(rs.getString("cover_color"));
                 
                 books.add(book);
             }
+            return books;
 
         } catch (SQLException e) {
-            throw new RuntimeException("Error finding popular books", e);
+            throw new RuntimeException("주간 인기 도서 조회 중 오류가 발생했습니다.", e);
         }
+    }
 
-        return books;
+    public List<PopularBookDTO> findMonthlyPopularBooks() {
+        try (Connection conn = databaseConnection.getConnection();
+             CallableStatement cs = conn.prepareCall(
+                "{ call popular_package.get_monthly_popular_books(?) }"
+             )) {
+
+            cs.registerOutParameter(1, OracleTypes.CURSOR);
+            cs.execute();
+
+            List<PopularBookDTO> books = new ArrayList<>();
+            ResultSet rs = (ResultSet) cs.getObject(1);
+            while (rs.next()) {
+                PopularBookDTO book = new PopularBookDTO();
+                book.setBookId(rs.getLong("book_id"));
+                book.setTitle(rs.getString("title"));
+                book.setAuthor(rs.getString("author"));
+                book.setPublisher(rs.getString("publisher"));
+                book.setCoverColor(rs.getString("cover_color"));
+                
+                books.add(book);
+            }
+            return books;
+
+        } catch (SQLException e) {
+            throw new RuntimeException("월간 인기 도서 조회 중 오류가 발생했습니다.", e);
+        }
     }
 } 

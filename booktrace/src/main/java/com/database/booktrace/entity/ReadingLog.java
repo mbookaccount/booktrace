@@ -3,7 +3,6 @@ package com.database.booktrace.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,37 +11,37 @@ import java.time.LocalDateTime;
 @Setter
 public class ReadingLog {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "log_seq")
-    @SequenceGenerator(name = "log_seq", sequenceName = "log_seq", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "reading_log_seq")
+    @SequenceGenerator(name = "reading_log_seq", sequenceName = "reading_log_seq", allocationSize = 1)
     @Column(name = "log_id")
     private Long logId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "user_id")
+    private Long userId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_id", nullable = false)
-    private Book book;
+    @Column(name = "book_id")
+    private Long bookId;
 
-    @Column(name = "borrow_date", nullable = false)
-    private LocalDate borrowDate;
+    @Column(name = "borrow_date")
+    private LocalDateTime borrowDate;
 
     @Column(name = "return_date")
-    private LocalDate returnDate;
+    private LocalDateTime returnDate;
 
-    @Column
-    private Integer mileage = 0;
+    @Column(name = "mileage")
+    private Integer mileage;
 
     @Column(name = "total_mileage")
-    private Integer totalMileage = 0;
+    private Integer totalMileage;
 
-    // created_at / updated_at 필요?
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Transient
+    private String bookTitle;
 
     @PrePersist
     protected void onCreate() {

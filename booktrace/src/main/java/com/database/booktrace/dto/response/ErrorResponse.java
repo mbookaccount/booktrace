@@ -1,4 +1,4 @@
-package com.database.booktrace.dto;
+package com.database.booktrace.dto.response;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,7 +1,10 @@
 package com.database.booktrace.repository;
 
+import com.database.booktrace.dto.ReadingLogDTO;
+import com.database.booktrace.dto.response.ReadingLogResponse;
 import com.database.booktrace.entity.ReadingLog;
 import com.database.booktrace.util.DatabaseConnection;
+import oracle.jdbc.OracleTypes;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -15,47 +18,62 @@ public class ReadingLogRepository {
     @Autowired
     private DatabaseConnection databaseConnection;
 
-    public List<ReadingLog> findByUserId(Long userId) {
-        String sql = "SELECT rl.log_id, rl.user_id, rl.book_id, rl.borrow_date, rl.return_date, " +
-                    "rl.mileage, rl.total_mileage, rl.created_at, rl.updated_at, " +
-                    "b.title as book_title " +
-                    "FROM reading_log rl " +
-                    "JOIN books b ON rl.book_id = b.book_id " +
-                    "WHERE rl.user_id = ? " +
-                    "ORDER BY rl.borrow_date DESC";
-
-        List<ReadingLog> logs = new ArrayList<>();
-
+    /**
+     * 사용자의 독서 로그 목록을 조회합니다.
+     * @param userId 사용자 ID
+     * @return 독서 로그 목록
+     */
+    public List<ReadingLogResponse> findByUserId(Long userId) {
         try (Connection conn = databaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             CallableStatement cs = conn.prepareCall(
+                     "{ call reading_log_package.get_user_reading_logs(?, ?) }"
+             )) {
 
-            pstmt.setLong(1, userId);
-            ResultSet rs = pstmt.executeQuery();
+            cs.setLong(1, userId);
+            cs.registerOutParameter(2, OracleTypes.CURSOR);
+            cs.execute();
+
+            List<ReadingLogResponse> logs = new ArrayList<>();
+            ResultSet rs = (ResultSet) cs.getObject(2);
 
             while (rs.next()) {
-                ReadingLog log = new ReadingLog();
-                log.setLogId(rs.getLong("log_id"));
-                log.setBorrowDate(rs.getDate("borrow_date").toLocalDate());
-                log.setReturnDate(rs.getDate("return_date") != null ? 
-                    rs.getDate("return_date").toLocalDate() : null);
-                log.setMileage(rs.getInt("mileage"));
-                log.setTotalMileage(rs.getInt("total_mileage"));
-                log.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
-                log.setUpdatedAt(rs.getTimestamp("updated_at") != null ? 
-                    rs.getTimestamp("updated_at").toLocalDateTime() : null);
-                
-                // Book 정보 설정
-                log.getBook().setBookId(rs.getLong("book_id"));
-                log.getBook().setTitle(rs.getString("book_title"));
-                
-                logs.add(log);
+                logs.add(mapReadingLogResponse(rs));
             }
 
-        } catch (SQLException e) {
-            throw new RuntimeException("Error finding reading logs by user ID", e);
-        }
+            return logs;
 
-        return logs;
+        } catch (SQLException e) {
+            handleSQLException(e, "사용자의 독서 로그를 조회하는 중 오류가 발생했습니다.");
+            return new ArrayList<>();
+        }
     }
 
+    /**
+     * ResultSet을 ReadingLog 객체로 매핑합니다.
+     */
+    private ReadingLogResponse mapReadingLogResponse(ResultSet rs) throws SQLException {
+        ReadingLogResponse response = new ReadingLogResponse();
+        response.setUserLogNumber(rs.getInt("user_log_number"));
+        response.setBookTitle(rs.getString("book_title"));
+        response.setMileage(rs.getInt("mileage"));
+        response.setTotalMileage(rs.getInt("total_mileage"));
+        response.setBorrowDate(rs.getTimestamp("borrow_date").toLocalDateTime().toLocalDate());
+        response.setReturnDate(rs.getTimestamp("return_date") != null ? 
+            rs.getTimestamp("return_date").toLocalDateTime().toLocalDate() : null);
+        return response;
+    }
+
+    /**
+     * SQL 예외를 처리합니다.
+     */
+    private void handleSQLException(SQLException e, String message) {
+        switch (e.getErrorCode()) {
+            case 30001: // 독서 로그 없음
+                throw new IllegalArgumentException("독서 로그를 찾을 수 없습니다.");
+            case 30002: // 날짜 유효성 오류
+                throw new IllegalArgumentException("반납일은 대출일보다 이후여야 합니다.");
+            default:
+                throw new RuntimeException(message, e);
+        }
+    }
 } 

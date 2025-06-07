@@ -1,7 +1,7 @@
 package com.database.booktrace.controller;
 
-import com.database.booktrace.dto.ErrorResponse;
-import com.database.booktrace.dto.ReadingLogDTO;
+import com.database.booktrace.dto.response.ErrorResponse;
+import com.database.booktrace.dto.response.ReadingLogResponse;
 import com.database.booktrace.service.ReadingLogService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +20,11 @@ public class ReadingLogController {
     @Autowired
     private ReadingLogService readingLogService;
 
+    /**
+     * 사용자의 독서 로그 목록을 조회합니다.
+     * @param session HTTP 세션
+     * @return 독서 로그 응답 목록
+     */
     @GetMapping("/reading-logs")
     public ResponseEntity<?> getMyReadingLogs(HttpSession session) {
         // 세션에서 사용자 ID 가져오기
@@ -36,7 +41,7 @@ public class ReadingLogController {
         }
 
         try {
-            List<ReadingLogDTO> logs = readingLogService.getReadingLogsByUserId(userId);
+            List<ReadingLogResponse> logs = readingLogService.getReadingLogsByUserId(userId);
             return ResponseEntity.ok(logs);
         } catch (IllegalArgumentException e) {
             ErrorResponse error = new ErrorResponse(

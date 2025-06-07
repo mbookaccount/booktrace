@@ -22,9 +22,10 @@ public class UserRepository {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public Optional<User> findByUsername(String username) {
-        String sql = "SELECT user_id, user_name, login_id, password, mileage, interests, created_at, updated_at, is_active " +
-                    "FROM users " +
-                    "WHERE username = ?";
+        String sql = "SELECT u.user_id, u.user_name, u.login_id, u.password, u.mileage, u.interests, " +
+                    "u.created_at, u.updated_at, u.is_active " +
+                    "FROM users u " +
+                    "WHERE u.login_id = ? AND u.is_active = 1";
 
         try (Connection conn = databaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -39,16 +40,16 @@ public class UserRepository {
                 user.setLoginId(rs.getString("login_id"));
                 user.setPassword(rs.getString("password"));
                 user.setMileage(rs.getInt("mileage"));
-//                user.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
-//                user.setUpdatedAt(rs.getTimestamp("updated_at") != null ?
-//                    rs.getTimestamp("updated_at").toLocalDateTime() : null);
+                user.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
+                user.setUpdatedAt(rs.getTimestamp("updated_at") != null ?
+                    rs.getTimestamp("updated_at").toLocalDateTime() : null);
                 user.setIsActive(rs.getBoolean("is_active"));
 
                 // JSON 문자열을 Set으로 변환
-                String keywordsJson = rs.getString("interests");
-                if (keywordsJson != null && !keywordsJson.isEmpty()) {
-                    Set<String> keywords = objectMapper.readValue(keywordsJson, new TypeReference<HashSet<String>>() {});
-                    user.setInterests(keywords);
+                String interestsJson = rs.getString("interests");
+                if (interestsJson != null && !interestsJson.isEmpty()) {
+                    Set<String> interests = objectMapper.readValue(interestsJson, new TypeReference<HashSet<String>>() {});
+                    user.setInterests(interests);
                 }
 
                 return Optional.of(user);
@@ -101,6 +102,37 @@ public class UserRepository {
 
         } catch (SQLException | JsonProcessingException e) {
             throw new RuntimeException("Error saving user", e);
+        }
+    }
+
+    public void updateUserMileage(Long userId, int mileage) {
+        String sql = "UPDATE users SET mileage = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?";
+
+        try (Connection conn = databaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, mileage);
+            pstmt.setLong(2, userId);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error updating user mileage", e);
+        }
+    }
+
+    public void updateUserInterests(Long userId, Set<String> interests) {
+        String sql = "UPDATE users SET interests = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?";
+
+        try (Connection conn = databaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            String interestsJson = objectMapper.writeValueAsString(interests);
+            pstmt.setString(1, interestsJson);
+            pstmt.setLong(2, userId);
+            pstmt.executeUpdate();
+
+        } catch (SQLException | JsonProcessingException e) {
+            throw new RuntimeException("Error updating user interests", e);
         }
     }
 } 
