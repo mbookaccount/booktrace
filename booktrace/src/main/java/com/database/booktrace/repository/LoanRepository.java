@@ -151,7 +151,7 @@ public class LoanRepository {
 
             cs.registerOutParameter(1, OracleTypes.NUMBER);
             cs.setLong(2, loan.getLoanId());
-            cs.setLong(3, loan.getUserId());
+            cs.setLong(3, loan.getUser().getUserId());
             cs.setLong(4, loan.getBookId());
             cs.setTimestamp(5, Timestamp.valueOf(loan.getBorrowDate()));
             cs.setTimestamp(6, Timestamp.valueOf(loan.getReturnDate()));

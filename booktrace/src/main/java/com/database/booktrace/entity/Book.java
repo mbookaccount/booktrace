@@ -18,8 +18,8 @@ public class Book {
     private Long bookId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "library_id", nullable = false)
-    private Long libraryId;
+    @JoinColumn(nullable = false)
+    private Library library;
 
     @Column(nullable = false)
     private String title;

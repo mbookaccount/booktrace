@@ -20,6 +20,6 @@ public class Library {
     @Column(nullable = false)
     private String name;
 
-    @OneToMany(mappedBy = "library", cascade = CascadeType.ALL)
-    private List<Book> books = new ArrayList<>();
+    @OneToMany(mappedBy = "library",cascade = {CascadeType.ALL})
+    private List<Book> books = new ArrayList();
 } 

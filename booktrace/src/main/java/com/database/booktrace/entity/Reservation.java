@@ -17,12 +17,12 @@ public class Reservation {
     private Long resvId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private Long userId;
+    @JoinColumn(nullable = false)
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_id", nullable = false)
-    private Long bookId;
+    @JoinColumn(nullable = false)
+    private Book book;
 
     @Column(name = "resv_date", nullable = false)
     private LocalDateTime resvDate;

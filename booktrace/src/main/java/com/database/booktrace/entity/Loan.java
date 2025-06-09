@@ -16,8 +16,8 @@ public class Loan {
     @Column(name = "loan_id")
     private Long loanId;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @Column(nullable = false)
+    private User user;
 
     @Column(name = "book_id", nullable = false)
     private Long bookId;
