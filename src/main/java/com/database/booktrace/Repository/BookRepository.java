@@ -2,15 +2,21 @@ package com.database.booktrace.Repository;
 
 import com.database.booktrace.Domain.Book;
 import com.database.booktrace.Domain.BookCategory;
+import com.database.booktrace.Dto.Response.BookDetailDto;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Set;
 
+@Repository
 public interface BookRepository extends JpaRepository<Book,Long> {
 
+    //private final JdbcTemplate jdbcTemplate;
     // Oracle용 카테고리별 추천 도서 조회
     @Query(value = """
     SELECT * FROM (
@@ -45,13 +51,21 @@ public interface BookRepository extends JpaRepository<Book,Long> {
 //        """,nativeQuery = true)
 //    List<Book> findPopularBooks(@Param("limit") int limit);
 // Oracle용 인기 도서 조회
-@Query(value = """
-        SELECT * FROM (
-            SELECT * FROM BOOKS
-            ORDER BY AVAILABLE_AMOUNT DESC, BOOK_ID ASC
-        ) WHERE ROWNUM <= ?1
-        """, nativeQuery = true)
-List<Book> findPopularBooks(int limit);
+    @Query(value = """
+            SELECT * FROM (
+                SELECT * FROM BOOKS
+                ORDER BY AVAILABLE_AMOUNT DESC, BOOK_ID ASC
+            ) WHERE ROWNUM <= ?1
+            """, nativeQuery = true)
+    List<Book> findPopularBooks(int limit);
 
+
+    //도서관별 도서 조회
+    @Query("SELECT b FROM b WHERE b.library.libraryId=:libraryId")
+    List<Book> findByLibraryId(@Param("libraryId") Long libraryId);
+
+    //도서 ID와 도서관 ID로 도서 조회 (대출용)
+    @Query("SELECT b FROM Book b WHERE b.bookId = :bookId AND b.library.libraryId = :libraryId")
+    Book findByBookIdAndLibraryId(@Param("bookId") Long bookId, @Param("libraryId") Long libraryId);
 }
 
