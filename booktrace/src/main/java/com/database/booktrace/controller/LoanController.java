@@ -1,20 +1,22 @@
 package com.database.booktrace.controller;
 
-import com.database.booktrace.dto.ErrorResponse;
+import com.database.booktrace.dto.request.CancelResvRequest;
+import com.database.booktrace.dto.request.ExtendLoanRequest;
+import com.database.booktrace.dto.response.CancelResvResponse;
+import com.database.booktrace.dto.response.ErrorResponse;
+import com.database.booktrace.dto.response.ExtendLoanResponse;
 import com.database.booktrace.dto.response.LoanResponse;
 import com.database.booktrace.service.LoanService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/loans")
 public class LoanController {
 
     @Autowired
@@ -25,7 +27,7 @@ public class LoanController {
      * @param session HTTP 세션
      * @return 대출 응답 목록
      */
-    @GetMapping("/loans")
+    @GetMapping
     public ResponseEntity<?> getMyLoans(HttpSession session) {
         // 세션에서 사용자 ID 가져오기
         Long userId = (Long) session.getAttribute("userId");
@@ -48,6 +50,40 @@ public class LoanController {
                 false,
                 "다시 시도해주세요.",
                 e.getMessage()
+            );
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(error);
+        }
+    }
+
+    @DeleteMapping("/cancel")
+    public ResponseEntity<?> cancelResv(CancelResvRequest request){
+        try{
+            CancelResvResponse cancelResvResponse = loanService.cancelResv(request.getReservationId());
+            return ResponseEntity.ok(cancelResvResponse);
+        } catch (IllegalArgumentException e){
+            ErrorResponse error = new ErrorResponse(
+                    false,
+                    "다시 시도해주세요.",
+                    e.getMessage()
+            );
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(error);
+        }
+    }
+
+    @PostMapping("/extend")
+    public ResponseEntity<?> extendLoan(ExtendLoanRequest request){
+        try{
+            ExtendLoanResponse extendLoanResponse = loanService.extendLoan(request.getLoanId());
+            return ResponseEntity.ok(extendLoanResponse);
+        } catch (IllegalArgumentException e){
+            ErrorResponse error = new ErrorResponse(
+                    false,
+                    "다시 시도해주세요.",
+                    e.getMessage()
             );
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)

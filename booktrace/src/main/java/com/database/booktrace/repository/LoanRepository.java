@@ -1,5 +1,7 @@
 package com.database.booktrace.repository;
 
+import com.database.booktrace.dto.response.CancelResvResponse;
+import com.database.booktrace.dto.response.ExtendLoanResponse;
 import com.database.booktrace.dto.response.LoanResponse;
 import com.database.booktrace.entity.Loan;
 import com.database.booktrace.util.DatabaseConnection;
@@ -62,7 +64,7 @@ public class LoanRepository {
     }
 
     // 대출 연장
-    public Loan extendLoan(Long loanId) {
+    public ExtendLoanResponse extendLoan(Long loanId) {
         try (Connection conn = databaseConnection.getConnection();
              CallableStatement cs = conn.prepareCall(
                 "{ call loan_package.extend_loan(?, ?) }"
@@ -73,6 +75,17 @@ public class LoanRepository {
             cs.execute();
 
             ResultSet rs = (ResultSet) cs.getObject(2);
+            if (rs.next()) {
+                ExtendLoanResponse response = new ExtendLoanResponse();
+                response.setId(rs.getLong("id"));
+                response.setUserId(rs.getLong("user_id"));
+                response.setBookId(rs.getLong("book_id"));
+                response.setBorrowDate(rs.getTimestamp("borrow_date").toLocalDateTime());
+                response.setReturnDate(rs.getTimestamp("return_date").toLocalDateTime());
+                response.setStatus(rs.getString("status"));
+                response.setExtensionCount(rs.getInt("extensionCount"));
+                return response;
+            }
 
             throw new IllegalArgumentException("대출 연장이 불가능합니다.");
 
@@ -83,7 +96,7 @@ public class LoanRepository {
     }
 
     // 예약 취소
-    public void cancelReservation(Long reservationId) {
+    public CancelResvResponse cancelReservation(Long reservationId) {
         try (Connection conn = databaseConnection.getConnection();
              CallableStatement cs = conn.prepareCall(
                 "{ call loan_package.cancel_reservation(?) }"
@@ -92,8 +105,21 @@ public class LoanRepository {
             cs.setLong(1, reservationId);
             cs.execute();
 
+            ResultSet rs = (ResultSet) cs.getObject(2);
+            if (rs.next()) {
+                CancelResvResponse response = new CancelResvResponse();
+                response.setId(rs.getLong("id"));
+                response.setUserId(rs.getLong("user_id"));
+                response.setBookId(rs.getLong("book_id"));
+                response.setResvDate(rs.getTimestamp("resv_date").toLocalDateTime());
+                response.setStatus(rs.getString("status"));
+                return response;
+            }
+
+            throw new IllegalArgumentException("예약 취소가 불가능합니다.");
         } catch (SQLException e) {
             handleSQLException(e, "예약 취소 중 오류가 발생했습니다.");
+            return null;
         }
     }
 

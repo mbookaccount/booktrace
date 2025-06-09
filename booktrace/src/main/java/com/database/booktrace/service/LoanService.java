@@ -1,6 +1,8 @@
 package com.database.booktrace.service;
 
 import com.database.booktrace.dto.LoanDTO;
+import com.database.booktrace.dto.response.CancelResvResponse;
+import com.database.booktrace.dto.response.ExtendLoanResponse;
 import com.database.booktrace.dto.response.LoanResponse;
 import com.database.booktrace.entity.Loan;
 import com.database.booktrace.repository.LoanRepository;
@@ -30,6 +32,14 @@ public class LoanService {
         }
 
         return loanRepository.findByUserId(userId);
+    }
+
+    public CancelResvResponse cancelResv(Long resvId){
+        return loanRepository.cancelReservation(resvId);
+    }
+
+    public ExtendLoanResponse extendLoan(Long loanId){
+        return loanRepository.extendLoan(loanId);
     }
 
 } 

@@ -52,7 +52,8 @@ CREATE OR REPLACE PACKAGE loan_package AS
     
     -- 예약 취소
     PROCEDURE cancel_reservation(
-        p_reservation_id IN loans.loan_id%TYPE
+        p_reservation_id IN reservations.reservation_id%TYPE,
+        p_result OUT loan_cursor
     );
     
     -- 도서 예약 여부 확인
@@ -69,7 +70,7 @@ CREATE OR REPLACE PACKAGE loan_package AS
     -- 대출 연장 가능 여부 확인
     FUNCTION can_extend_loan(
         p_loan_id IN loans.loan_id%TYPE
-    ) RETURN BOOLEAN;
+    ) RETURN NUMBER;
     
     -- 대출 정보 저장 (신규/수정)
     FUNCTION save_loan(
@@ -126,7 +127,46 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
             JOIN libraries lib ON b.library_id = lib.library_id
             WHERE l.user_id = p_user_id;
     END get_user_loans;
-    
+
+    -- 대출 연장 가능 여부 확인
+    FUNCTION can_extend_loan(
+        p_loan_id IN loans.loan_id%TYPE
+    ) RETURN NUMBER IS
+        v_extend_number NUMBER;
+        v_return_date TIMESTAMP;
+        v_status VARCHAR2(20);
+    BEGIN
+        -- 대출 정보 조회
+        SELECT extend_number, return_date, status
+        INTO v_extend_number, v_return_date, v_status
+        FROM loans
+        WHERE loan_id = p_loan_id;
+
+        -- 연장 횟수 체크
+        IF v_extend_number >= 2 THEN
+            RAISE loan_exceptions.max_extends_exceeded;
+        END IF;
+
+        -- 연체 여부 체크
+        IF v_return_date < SYSTIMESTAMP THEN
+            RAISE loan_exceptions.overdue_loan_exception;
+        END IF;
+
+        -- 상태 체크
+        IF v_status != 'NORMAL' THEN
+            RETURN 0;
+        END IF;
+
+        RETURN 1;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE loan_exceptions.not_found_exception;
+        WHEN loan_exceptions.max_extends_exceeded THEN
+            RAISE_APPLICATION_ERROR(-20001, '대출 연장은 최대 2회까지만 가능합니다.');
+        WHEN loan_exceptions.overdue_loan_exception THEN
+            RAISE_APPLICATION_ERROR(-20002, '연체된 대출은 연장할 수 없습니다.');
+    END can_extend_loan;
+
     -- 특정 대출 정보 조회
     PROCEDURE get_loan_by_id(
         p_loan_id IN loans.loan_id%TYPE,
@@ -151,40 +191,6 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
             WHERE l.loan_id = p_loan_id;
     END get_loan_by_id;
     
-    -- 대출 연장 가능 여부 확인
-    FUNCTION can_extend_loan(
-        p_loan_id IN loans.loan_id%TYPE
-    ) RETURN BOOLEAN IS
-        v_extend_number NUMBER;
-        v_return_date TIMESTAMP;
-        v_status VARCHAR2(20);
-    BEGIN
-        SELECT extend_number, return_date, status
-        INTO v_extend_number, v_return_date, v_status
-        FROM loans
-        WHERE loan_id = p_loan_id;
-        
-        -- 연장 횟수 체크
-        IF v_extend_number >= 2 THEN
-            RAISE loan_exceptions.max_extends_exceeded;
-        END IF;
-        
-        -- 연체 여부 체크
-        IF v_return_date < SYSTIMESTAMP THEN
-            RAISE loan_exceptions.overdue_loan_exception;
-        END IF;
-        
-        -- 상태 체크
-        IF v_status != 'NORMAL' THEN
-            RETURN FALSE;
-        END IF;
-        
-        RETURN TRUE;
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN
-            RAISE loan_exceptions.not_found_exception;
-    END can_extend_loan;
-    
     -- 대출 연장
     PROCEDURE extend_loan(
         p_loan_id IN loans.loan_id%TYPE,
@@ -193,34 +199,49 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
         v_loan loans%ROWTYPE;
     BEGIN
         -- 연장 가능 여부 확인
-        IF NOT can_extend_loan(p_loan_id) THEN
+        IF can_extend_loan(p_loan_id) = 0 THEN
             RETURN;
         END IF;
-        
-        -- 예약 여부 확인
+
+        -- 대출 정보 조회
         SELECT * INTO v_loan
         FROM loans
         WHERE loan_id = p_loan_id;
-        
+
+        -- 예약 여부 확인
         IF has_reservation(v_loan.book_id) THEN
             RAISE loan_exceptions.already_reserved_exception;
         END IF;
-        
-        -- 대출 연장 처리
+
+        -- 연장 처리
         UPDATE loans
-        SET return_date = return_date + INTERVAL '7' DAY,
+        SET return_date = return_date + 7,  -- INTERVAL 대신 + 7 사용
             extend_number = extend_number + 1,
             updated_at = SYSTIMESTAMP
         WHERE loan_id = p_loan_id;
-        
-        -- 업데이트된 대출 정보 조회
+
+        COMMIT;
+
+        -- 연장 후 결과 반환 (명시적 컬럼 나열)
         OPEN p_result FOR
-            SELECT l.*, b.title as book_title, lib.name as library_name
+            SELECT
+                l.loan_id AS id,
+                l.user_id,
+                l.book_id,
+                l.borrow_date,
+                l.return_date,
+                CASE
+                    WHEN l.return_date < SYSDATE THEN 'OVERDUE'
+                    ELSE 'NORMAL'
+                END AS status,
+                l.extend_number AS extensionCount,
+                b.title AS book_title,
+                lib.name AS library_name
             FROM loans l
             JOIN books b ON l.book_id = b.book_id
             JOIN libraries lib ON b.library_id = lib.library_id
             WHERE l.loan_id = p_loan_id;
-            
+
     EXCEPTION
         WHEN NO_DATA_FOUND THEN
             RAISE loan_exceptions.not_found_exception;
@@ -228,28 +249,35 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
     
     -- 예약 취소
     PROCEDURE cancel_reservation(
-        p_reservation_id IN loans.loan_id%TYPE
+        p_reservation_id IN reservations.reservation_id%TYPE,
+        p_result OUT loan_cursor
     ) IS
-        v_status VARCHAR2(20);
+        v_reservation reservations%ROWTYPE;
     BEGIN
-        -- 예약 상태 확인
-        SELECT status INTO v_status
-        FROM loans
-        WHERE loan_id = p_reservation_id;
-        
-        IF v_status != 'RESERVED' THEN
-            RAISE loan_exceptions.not_found_exception;
-        END IF;
-        
+        -- 예약 정보 조회
+        SELECT * INTO v_reservation
+        FROM reservations
+        WHERE reservation_id = p_reservation_id;
+
+        -- 삭제 전에 필요한 정보만 따로 보관
+        OPEN p_result FOR
+            SELECT
+                v_reservation.reservation_id AS id,
+                v_reservation.user_id,
+                v_reservation.book_id,
+                v_reservation.reservation_date AS resv_date,
+                'CANCELLED' AS status
+            FROM dual;
+
         -- 예약 취소 처리
-        DELETE FROM loans
-        WHERE loan_id = p_reservation_id;
-        
+        DELETE FROM reservations
+        WHERE reservation_id = p_reservation_id;
+        COMMIT;
     EXCEPTION
         WHEN NO_DATA_FOUND THEN
             RAISE loan_exceptions.not_found_exception;
     END cancel_reservation;
-    
+
     -- 도서 예약 여부 확인
     FUNCTION has_reservation(
         p_book_id IN books.book_id%TYPE
@@ -257,9 +285,8 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
         v_count NUMBER;
     BEGIN
         SELECT COUNT(*) INTO v_count
-        FROM loans
-        WHERE book_id = p_book_id
-        AND status = 'RESERVED';
+        FROM reservations
+        WHERE book_id = p_book_id;
         
         RETURN v_count > 0;
     END has_reservation;
@@ -295,7 +322,7 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
     BEGIN
         -- 연장인 경우 유효성 검사
         IF p_loan_id IS NOT NULL THEN
-            IF NOT can_extend_loan(p_loan_id) THEN
+            IF can_extend_loan(p_loan_id) = 0 THEN
                 RETURN NULL;
             END IF;
         END IF;
