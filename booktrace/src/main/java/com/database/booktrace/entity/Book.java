@@ -48,6 +48,9 @@ public class Book {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "cover_image", nullable = false)
+    private String coverImage;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

@@ -8,5 +8,5 @@ public class PopularBookDTO {
     private String title;
     private String author;
     private String publisher;
-    private String coverColor;  // 카테고리별 색상
+    private String coverImage;  // 카테고리별 색상
 } 

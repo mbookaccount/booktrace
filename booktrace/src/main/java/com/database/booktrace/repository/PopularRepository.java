@@ -33,7 +33,7 @@ public class PopularRepository {
                 book.setTitle(rs.getString("title"));
                 book.setAuthor(rs.getString("author"));
                 book.setPublisher(rs.getString("publisher"));
-                book.setCoverColor(rs.getString("cover_color"));
+                book.setCoverImage(rs.getString("cover_image"));
                 
                 books.add(book);
             }
@@ -61,7 +61,7 @@ public class PopularRepository {
                 book.setTitle(rs.getString("title"));
                 book.setAuthor(rs.getString("author"));
                 book.setPublisher(rs.getString("publisher"));
-                book.setCoverColor(rs.getString("cover_color"));
+                book.setCoverImage(rs.getString("cover_image"));
                 
                 books.add(book);
             }
