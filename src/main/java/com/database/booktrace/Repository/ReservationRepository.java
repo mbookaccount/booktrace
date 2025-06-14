@@ -27,7 +27,8 @@ public class ReservationRepository {
                         new SqlOutParameter("p_result", Types.INTEGER),
                         new SqlOutParameter("p_message", Types.VARCHAR)
                 );
-
+        log.info("p_user_id : {}", userId);
+        log.info("p_book_id : {}",bookId);
         Map<String, Object> inParams = new HashMap<>();
         inParams.put("p_user_id", userId);
         inParams.put("p_book_id", bookId);

@@ -3,91 +3,88 @@ package com.database.booktrace.Controller;
 import com.database.booktrace.Dto.Request.LoanRequestDTO;
 import com.database.booktrace.Dto.Response.LoanResponseDTO;
 import com.database.booktrace.Service.LoanService;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
-@RequestMapping("/api/loans")
 @RequiredArgsConstructor
+@RequestMapping("/api/loan")
+@CrossOrigin(origins = "http://localhost:3000")
 @Slf4j
-@CrossOrigin(origins = "*") // 프론트엔드 연동을 위한 CORS 설정
 public class LoanController {
 
     private final LoanService loanService;
 
-    /**
-     * 도서 대출 API (POST - JSON Body 방식)
-     *
-     */
-    @PostMapping("/borrow")
-    public ResponseEntity<LoanResponseDTO> borrowBook(@RequestBody LoanRequestDTO request) {
-        log.info("도서 대출 API 호출: userId={}, bookId={}, libraryId={}",
-                request.getUserId(), request.getBookId(), request.getLibraryId());
+    @PostMapping("/book/{bookId}")
+    public ResponseEntity<?> advancedBorrowEbook(@PathVariable Long bookId, HttpSession session) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(401).body(Map.of(
+                    "success", false,
+                    "message", "로그인이 필요합니다."
+            ));
+        }
 
         try {
-            // 입력값 검증
-            if (request.getUserId() == null || request.getBookId() == null || request.getLibraryId() == null) {
-                LoanResponseDTO errorResponse = LoanResponseDTO.failure("필수 입력값이 누락되었습니다.");
-                return ResponseEntity.badRequest().body(errorResponse);
+            Map<String, Object> result = loanService.advancedBorrowEbook(userId, bookId);
+
+            // Oracle NUMBER 타입은 BigDecimal로 반환됨! 안전한 변환 필요
+            Object resultObj = result.get("p_result");
+            Object loanIdObj = result.get("p_loan_id");
+            String message = (String) result.get("p_message");
+
+            // BigDecimal → Integer/Long 안전 변환
+            int status = 0;
+            if (resultObj instanceof java.math.BigDecimal) {
+                status = ((java.math.BigDecimal) resultObj).intValue();
+            } else if (resultObj instanceof Integer) {
+                status = (Integer) resultObj;
             }
 
-            // 대출 처리
-            LoanResponseDTO response = loanService.borrowBook(request);
+            Long loanId = null;
+            if (loanIdObj instanceof java.math.BigDecimal) {
+                loanId = ((java.math.BigDecimal) loanIdObj).longValue();
+            } else if (loanIdObj instanceof Long) {
+                loanId = (Long) loanIdObj;
+            }
 
-            if (response.isSuccess()) {
+            String safeMessage = (message != null) ? message : "알 수 없는 오류";
+
+            log.info("****결과로그 여기***** 결과 -> {} 메세지 --> {} loanId--->{}",
+                    status, safeMessage, loanId);
+
+            // HashMap 사용 (null 허용)
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", status == 1);
+            response.put("message", safeMessage);
+            if (loanId != null) {
+                response.put("loanId", loanId);
+            }
+            // 상태 코드 구분
+            if (status == 1) {
                 return ResponseEntity.ok(response);
+            } else if (safeMessage.contains("대출 한도 초과")) {
+                return ResponseEntity.status(403).body(response); // Forbidden
+            } else if (safeMessage.contains("대출 불가능한 도서")) {
+                return ResponseEntity.status(409).body(response); // Conflict
+            } else if (safeMessage.contains("존재하지 않는 도서")) {
+                return ResponseEntity.status(404).body(response); // Not Found
             } else {
-                return ResponseEntity.badRequest().body(response);
+                return ResponseEntity.status(400).body(response); // 기타 실패
             }
 
         } catch (Exception e) {
-            log.error("도서 대출 처리 중 오류 발생", e);
-            LoanResponseDTO errorResponse = LoanResponseDTO.failure("서버 오류가 발생했습니다: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(errorResponse);
+            log.error("대출 처리 중 오류 발생", e);
+            return ResponseEntity.status(500).body(Map.of(
+                    "success", false,
+                    "message", "대출 처리 중 오류가 발생했습니다."
+            ));
         }
     }
-
-    /**
-     * 도서 대출 API
-     *
-     */
-    @GetMapping("/borrow")
-    public ResponseEntity<LoanResponseDTO> borrowBookByParams(
-            @RequestParam Long userId,
-            @RequestParam Long bookId,
-            @RequestParam Long libraryId) {
-
-        log.info("도서 대출 API (GET) 호출: userId={}, bookId={}, libraryId={}", userId, bookId, libraryId);
-
-        // DTO 생성
-        LoanRequestDTO request = new LoanRequestDTO(userId, bookId, libraryId);
-
-        // POST 방식과 동일한 로직 재사용
-        return borrowBook(request);
-    }
-
-    /**
-     * 도서 대출 가능 여부 확인 API
-     */
-    @GetMapping("/check-availability")
-    public ResponseEntity<Boolean> checkBookAvailability(
-            @RequestParam Long bookId,
-            @RequestParam Long libraryId) {
-
-        log.info("도서 대출 가능 여부 확인: bookId={}, libraryId={}", bookId, libraryId);
-
-        try {
-            boolean available = loanService.isBookAvailable(bookId, libraryId);
-            return ResponseEntity.ok(available);
-        } catch (Exception e) {
-            log.error("도서 대출 가능 여부 확인 중 오류", e);
-            return ResponseEntity.internalServerError().body(false);
-        }
-    }
-
-
-
-
 }
