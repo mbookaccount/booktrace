@@ -33,9 +33,13 @@ public class ReservationController {
         int status = (Integer) result.get("p_result");
         String message = (String) result.get("p_message");
 
+        if (message.contains("대출 가능 상태")) {
+            return ResponseEntity.status(403).body(Map.of("success",0,
+                    "message","현재 재고가 있습니다.")); // Forbidden
+        } else {
         return ResponseEntity.ok(Map.of(
                 "success", status == 1,
                 "message", message
         ));
-    }
+    }}
 }
