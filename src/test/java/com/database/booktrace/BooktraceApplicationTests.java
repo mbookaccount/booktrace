@@ -3,8 +3,10 @@ package com.database.booktrace;
 import com.database.booktrace.Domain.BookCategory;
 import com.database.booktrace.Domain.User;
 import com.database.booktrace.Domain.Book;
+import com.database.booktrace.Dto.Response.PopularBookDTO;
 import com.database.booktrace.Dto.Response.RecommendedBookDTO;
 import com.database.booktrace.Repository.BookRepository;
+import com.database.booktrace.Repository.PopularRepository;
 import com.database.booktrace.Repository.UserRepository;
 import com.database.booktrace.Service.RecommendationService;
 import org.junit.jupiter.api.DisplayName;
@@ -27,12 +29,14 @@ class BooktraceApplicationTests {
 	private UserRepository userRepository;
 	@Autowired
 	private BookRepository bookRepository;
+	@Autowired
+	private PopularRepository popularRepository;
 	@Test
 	void 추천_시스템_테스트() {
 		System.out.println("=== 추천 시스템 테스트 시작 ===");
 
 		// testuser 찾기
-		User user = userRepository.findByUserId("testuser").get();
+		User user = userRepository.findByUsername("testuser").get();
 
 		if (user == null) {
 			System.out.println("testuser를 찾을 수 없습니다!");
@@ -40,9 +44,9 @@ class BooktraceApplicationTests {
 		}
 
 		System.out.println(" 사용자 찾음:");
-		System.out.println("  - ID: " + user.getId());
+		System.out.println("  - ID: " + user.getUserId());
 		System.out.println("  - 이름: " + user.getUserName());
-		System.out.println("  - 로그인ID: " + user.getUserId());
+		System.out.println("  - 로그인ID: " + user.getLoginId());
 		System.out.println("  - 선호 카테고리: " + user.getPreferredCategories());
 
 		// 추천 받기
@@ -80,8 +84,9 @@ class BooktraceApplicationTests {
 		System.out.println("NOVEL 카테고리 조회 결과: " + novelBooks.size() + "권");
 
 		// 3. 인기 도서 조회
-		List<Book> popularBooks = bookRepository.findPopularBooks(5);
-		System.out.println("인기 도서 조회 결과: " + popularBooks.size() + "권");
+		List<PopularBookDTO> monthlyPopularBooks = popularRepository.findMonthlyPopularBooks();
+//		List<Book> popularBooks = bookRepository.findPopularBooks(5);
+		System.out.println("인기 도서 조회 결과: " + monthlyPopularBooks.size() + "권");
 
 		// 4. 결과 출력
 		computerBooks.forEach(book ->
@@ -92,7 +97,7 @@ class BooktraceApplicationTests {
 				System.out.println("NOVEL: " + book.getTitle())
 		);
 
-		popularBooks.forEach(book ->
+		monthlyPopularBooks.forEach(book ->
 				System.out.println("인기: " + book.getTitle())
 		);
 	}
@@ -101,8 +106,8 @@ class BooktraceApplicationTests {
 	void 서비스_로직_디버깅() {
 		System.out.println("=== 서비스 로직 디버깅 ===");
 
-		User user = userRepository.findByUserId("testuser").get();
-		System.out.println("사용자 ID: " + user.getId());
+		User user = userRepository.findByUsername("testuser").get();
+		System.out.println("사용자 ID: " + user.getUserId());
 		System.out.println("선호 카테고리: " + user.getPreferredCategories());
 
 		// 서비스의 각 단계별로 확인

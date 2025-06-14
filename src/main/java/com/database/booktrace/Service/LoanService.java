@@ -4,6 +4,9 @@ package com.database.booktrace.Service;
 
 import com.database.booktrace.Dto.Request.LoanRequestDTO;
 
+import com.database.booktrace.Dto.Response.CancelResvResponse;
+import com.database.booktrace.Dto.Response.ExtendLoanResponse;
+import com.database.booktrace.Dto.Response.LoanResponse;
 import com.database.booktrace.Dto.Response.LoanResponseDTO;
 
 import com.database.booktrace.Repository.LoanRepository;
@@ -11,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -44,4 +49,24 @@ public class LoanService {
     public boolean isBookAvailable(Long bookId, Long libraryId) {
         return loanRepository.checkBookAvailability(bookId, libraryId);
     }
+
+
+    @Transactional(readOnly = true)
+    public List<LoanResponse> getLoansByUserId(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("사용자 ID는 null일 수 없습니다.");
+        }
+
+        return loanRepository.findByUserId(userId);
+    }
+
+    public CancelResvResponse cancelResv(Long resvId){
+        return loanRepository.cancelReservation(resvId);
+    }
+
+    public ExtendLoanResponse extendLoan(Long loanId){
+        return loanRepository.extendLoan(loanId);
+    }
+
+
 }

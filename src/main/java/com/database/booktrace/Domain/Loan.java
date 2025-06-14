@@ -16,7 +16,7 @@ public class Loan {
     private LocalDateTime borrowDate;  // BORROW_DATE
     private LocalDateTime returnDate;  // RETURN_DATE
     private Integer extendNumber;  // EXTEND_NUMBER
-    private String status;         // STATUS ('BORROWED', 'RETURNED')
+    private String status;         // STATUS ('BORROWED', 'RETURNED', 'OVERDUE')
     private LocalDateTime createdAt;  // CREATED_AT
     private LocalDateTime updatedAt;  // UPDATED_AT
 
