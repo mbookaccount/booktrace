@@ -4,60 +4,27 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-
-@Entity
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Table(name = "RESERVATIONS")
-@SequenceGenerator(
-        name = "resv_seq_gen",
-        sequenceName = "seq_resv_id",
-        allocationSize = 1
-)
-public class Reservation extends BaseEntity{
+@ToString
+public class Reservation {
+    private Long resvId;           // RESV_ID (PK)
+    private Long userId;           // USER_ID (FK)
+    private Long bookId;           // BOOK_ID (FK)
+    private LocalDateTime resvDate;   // RESV_DATE
+    private String status;         // STATUS ('ACTIVE', 'COMPLETED', 'CANCELLED')
+    private LocalDateTime createdAt;  // CREATED_AT
+    private LocalDateTime updatedAt;  // UPDATED_AT
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "resv_seq_gen")
-    @Column(name = "RESV_ID")  // ERD에서 log_id로 되어있으니 맞춤
-    private Long resvId;
+    // 조인 조회 시 추가 정보 (DB 컬럼 아님)
+    private String userName;       // 사용자명
+    private String bookTitle;      // 도서명
+    private String bookAuthor;     // 저자명
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "USER_ID", nullable = false)
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "BOOK_ID", nullable = false)
-    private Book book;
-
-    @Column(name = "RESV_DATE") //예약 날짜
-    private LocalDateTime resvDate;
-
-    @Column(name = "STATUS", length = 20)
-    @Builder.Default
-    private String status = "ACTIVE"; // ACTIVE, COMPLETED, CANCELLED
-
-    // 예약 취소
-    public void cancel() {
-        this.status = "CANCELLED";
-    }
-
-    // 예약 완료 (대출로 전환됨)
-    public void complete() {
-        this.status = "COMPLETED";
-    }
-
-    // 예약이 활성 상태인지 확인
-    public boolean isActive() {
-        return "ACTIVE".equals(this.status);
-    }
-
-    @PrePersist
-    protected void onCreate() {
-        if (resvDate == null) {
-            resvDate = LocalDateTime.now();
-        }
+    public Reservation() {
+        this.status = "ACTIVE";
+        this.resvDate = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 }

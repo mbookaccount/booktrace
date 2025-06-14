@@ -10,7 +10,7 @@ import lombok.Builder;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BookSearchRequestDto {
+public class BookSearchRequestDTO {
 
     // 검색 조건들
     private String title;           // 제목 검색

@@ -1,34 +1,28 @@
+// Library.java - LIBRARIES 테이블과 매핑
 package com.database.booktrace.Domain;
 
-import jakarta.persistence.*;
-import lombok.*;
-import java.util.List;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+import java.time.LocalDateTime;
 
-// Library 엔티티 (전자도서관)
-@Entity
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Table(name = "LIBRARIES")
-@SequenceGenerator(
-        name = "library_seq_gen",
-        sequenceName = "seq_library_id",
-        initialValue = 1,
-        allocationSize = 1
-)
-public class Library extends BaseEntity{
+@ToString
+public class Library {
+    private Long libraryId;        // LIBRARY_ID (PK)
+    private String name;           // NAME
+    private LocalDateTime createdAt;  // CREATED_AT
+    private LocalDateTime updatedAt;  // UPDATED_AT
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "library_seq_gen")
-    @Column(name = "LIBRARY_ID")
-    private Long libraryId;
+    public Library() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
 
-    @Column(name = "NAME", nullable = false, length = 100)
-    private String name;
-
-    @OneToMany(mappedBy = "library", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Book> books;
-
+    public Library(String name) {
+        this();
+        this.name = name;
+    }
 }

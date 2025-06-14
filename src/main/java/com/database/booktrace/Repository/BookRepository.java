@@ -1,35 +1,29 @@
 package com.database.booktrace.Repository;
 
 import com.database.booktrace.Domain.Book;
-import com.database.booktrace.Domain.BookCategory;
-import com.database.booktrace.Dto.Response.BookDetailDto;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Set;
 
 @Repository
-public interface BookRepository extends JpaRepository<Book,Long> {
+public interface BookRepository  {
 
-    //private final JdbcTemplate jdbcTemplate;
-    // Oracle용 카테고리별 추천 도서 조회
+    // Oracle용 카테고리별 추천 도서 조회 (subquery, Oracle 함수 사용)
     @Query(value = """
     SELECT * FROM (
         SELECT b.*
         FROM BOOKS b
-        WHERE b.category = ?1
+        WHERE b.CATEGORY = ?1
         AND NOT EXISTS (
             SELECT 1 FROM LOANS l
             WHERE l.BOOK_ID = b.BOOK_ID
             AND l.USER_ID = ?2
-            AND l.status = 'BORROWED'
+            AND l.STATUS = 'BORROWED'
         )
-        ORDER BY b.AVAILABLE_AMOUNT DESC
+        ORDER BY NVL(b.AVAILABLE_AMOUNT, 0) DESC
     ) WHERE ROWNUM <= ?3
     """, nativeQuery = true)
     List<Book> findRecommendedBooksByCategory(
@@ -38,34 +32,37 @@ public interface BookRepository extends JpaRepository<Book,Long> {
             @Param("limit") int limit
     );
 
-//    //대출 가능한 인기 도서 조회 (대출 횟수 기준)
-//    @Query(value="""
-//        SELECT *
-//        FROM BOOKS b
-//        LEFT JOIN loans l ON b.BOOK_ID=l.BOOK_ID
-//        WHERE b.AVAILABLE_AMOUNT >0
-//        GROUP BY b.BOOK_ID,b.LIBRARY_ID, b.TITLE, b.AUTHOR, b.PUBLISHER, b.CATEGORY,
-//        b.PUBLISHED_DATE, b.DESCRIPTION, b.AVAILABLE_AMOUNT,b.COVER_IMAGE
-//        ORDER BY COUNT(l.LOG_ID) DESC, b.AVAILABLE_COUNT DESC
-//         WHERE ROWNUM <= :limit
-//        """,nativeQuery = true)
-//    List<Book> findPopularBooks(@Param("limit") int limit);
-// Oracle용 인기 도서 조회
+    // Oracle용 인기 도서 조회 (Oracle 함수 사용)
     @Query(value = """
             SELECT * FROM (
                 SELECT * FROM BOOKS
-                ORDER BY AVAILABLE_AMOUNT DESC, BOOK_ID ASC
+                WHERE NVL(AVAILABLE_AMOUNT, 0) >= 0
+                ORDER BY NVL(AVAILABLE_AMOUNT, 0) DESC, BOOK_ID ASC
             ) WHERE ROWNUM <= ?1
             """, nativeQuery = true)
     List<Book> findPopularBooks(int limit);
 
-
-    //도서관별 도서 조회
-    @Query("SELECT b FROM b WHERE b.library.libraryId=:libraryId")
+    // 도서관별 도서 조회 (네이티브 SQL만 사용)
+    @Query(value = "SELECT * FROM BOOKS WHERE LIBRARY_ID = ?1 ORDER BY TITLE", nativeQuery = true)
     List<Book> findByLibraryId(@Param("libraryId") Long libraryId);
 
-    //도서 ID와 도서관 ID로 도서 조회 (대출용)
-    @Query("SELECT b FROM Book b WHERE b.bookId = :bookId AND b.library.libraryId = :libraryId")
+    // 도서 ID와 도서관 ID로 도서 조회 (대출용, 네이티브 SQL)
+    @Query(value = "SELECT * FROM BOOKS WHERE BOOK_ID = ?1 AND LIBRARY_ID = ?2", nativeQuery = true)
     Book findByBookIdAndLibraryId(@Param("bookId") Long bookId, @Param("libraryId") Long libraryId);
-}
 
+    // 대출 가능한 도서 조회 (Oracle NVL 함수 사용)
+    @Query(value = """
+        SELECT * FROM BOOKS
+        WHERE NVL(AVAILABLE_AMOUNT, 0) > 0
+        ORDER BY TITLE
+        """, nativeQuery = true)
+    List<Book> findAvailableBooks();
+
+    // 제목 검색 (Oracle UPPER 함수 사용)
+    @Query(value = """
+        SELECT * FROM BOOKS 
+        WHERE UPPER(TITLE) LIKE UPPER('%' || ?1 || '%')
+        ORDER BY TITLE
+        """, nativeQuery = true)
+    List<Book> findByTitleContaining(String title);
+}
