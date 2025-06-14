@@ -16,7 +16,8 @@ public class Loan {
     @Column(name = "loan_id")
     private Long loanId;
 
-    @Column(nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(name = "book_id", nullable = false)
@@ -25,7 +26,7 @@ public class Loan {
     @Column(name = "borrow_date", nullable = false)
     private LocalDateTime borrowDate;
 
-    @Column(name = "return_date", nullable = false)
+    @Column(name = "return_date")
     private LocalDateTime returnDate;
 
     @Column(name = "extend_number")

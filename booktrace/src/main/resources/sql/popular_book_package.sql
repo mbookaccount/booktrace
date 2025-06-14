@@ -1,59 +1,27 @@
-CREATE OR REPLACE PACKAGE popular_package AS
-    -- 커서 타입 정의
-    TYPE popular_book_cursor IS REF CURSOR;
-    
-    -- 주간 인기 도서 조회
-    PROCEDURE get_weekly_popular_books(
-        p_books OUT popular_book_cursor
-    );
-    
-    -- 월간 인기 도서 조회
-    PROCEDURE get_monthly_popular_books(
-        p_books OUT popular_book_cursor
-    );
-    
-    -- 카테고리별 색상 반환 함수
-    FUNCTION get_category_color(p_category IN VARCHAR2) RETURN VARCHAR2;
-END popular_package;
+-- book 테이블에 status 컬럼 추가
+ALTER TABLE book ADD status VARCHAR2(20) DEFAULT 'AVAILABLE' NOT NULL;
+
+-- 대출 상태 변경 트리거
+CREATE OR REPLACE TRIGGER book_loan_status_trigger
+AFTER INSERT ON book_loan
+FOR EACH ROW
+BEGIN
+    -- 대출 시 도서 상태를 'LOANED'로 변경
+    UPDATE book
+    SET status = 'LOANED'
+    WHERE book_id = :NEW.book_id;
+END;
 /
 
-CREATE OR REPLACE PACKAGE BODY popular_package AS
-    -- 주간 인기 도서 조회
-    PROCEDURE get_weekly_popular_books(
-        p_books OUT popular_book_cursor
-    ) IS
-    BEGIN
-        OPEN p_books FOR
-            SELECT 
-                b.book_id, 
-                b.title, 
-                b.author, 
-                b.publisher,
-                b.cover_image
-                -- popular_package.get_category_color(b.category) as cover_color
-            FROM books b
-            WHERE b.borrow_count > 0
-            ORDER BY b.borrow_count DESC
-            FETCH FIRST 10 ROWS ONLY;
-    END get_weekly_popular_books;
-    
-    -- 월간 인기 도서 조회
-    PROCEDURE get_monthly_popular_books(
-        p_books OUT popular_book_cursor
-    ) IS
-    BEGIN
-        OPEN p_books FOR
-            SELECT 
-                b.book_id, 
-                b.title, 
-                b.author, 
-                b.publisher,
-                b.cover_image
-                -- popular_package.get_category_color(b.category) as cover_color
-            FROM books b
-            WHERE b.borrow_count > 0
-            ORDER BY b.borrow_count DESC
-            FETCH FIRST 10 ROWS ONLY;
-    END get_monthly_popular_books;
-END popular_package;
+-- 반납 시 도서 상태를 'AVAILABLE'로 변경하는 트리거
+CREATE OR REPLACE TRIGGER book_return_status_trigger
+AFTER UPDATE OF return_date ON book_loan
+FOR EACH ROW
+WHEN (NEW.return_date IS NOT NULL AND OLD.return_date IS NULL)
+BEGIN
+    -- 반납 시 도서 상태를 'AVAILABLE'로 변경
+    UPDATE book
+    SET status = 'AVAILABLE'
+    WHERE book_id = :NEW.book_id;
+END;
 / 

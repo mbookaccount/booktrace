@@ -5,6 +5,7 @@ import com.database.booktrace.entity.User;
 import com.database.booktrace.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.Set;
 
 @Service
 public class UserService {
@@ -29,5 +30,13 @@ public class UserService {
         dto.setMileage(user.getMileage());
         dto.setInterests(user.getInterests());
         return dto;
+    }
+
+    public boolean changePassword(Long userId, String currentRaw, String newRaw) {
+        return userRepository.updateUserPassword(userId, currentRaw, newRaw);  // 평문 그대로 전달
+    }
+
+    public void updateInterests(Long userId, Set<String> interests) {
+        userRepository.updateUserInterests(userId, interests);
     }
 } 

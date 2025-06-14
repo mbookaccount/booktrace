@@ -52,7 +52,7 @@ CREATE OR REPLACE PACKAGE loan_package AS
     
     -- 예약 취소
     PROCEDURE cancel_reservation(
-        p_reservation_id IN reservations.reservation_id%TYPE,
+        p_resv_id IN reservations.resv_id%TYPE,
         p_result OUT loan_cursor
     );
     
@@ -107,17 +107,17 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
                 b.title as book_title,
                 lib.name as library_location,
                 CASE 
-                    WHEN l.status = 'NORMAL' THEN '정상'
+                    WHEN l.status = 'BORROWED' THEN '대출중'
                     WHEN l.status = 'OVERDUE' THEN '연체'
                     WHEN l.status = 'RESERVED' THEN '예약'
                     ELSE l.status
                 END as status,
                 CASE 
-                    WHEN l.status = 'NORMAL' AND l.extend_number < 2 AND l.return_date > SYSTIMESTAMP THEN TRUE
+                    WHEN l.status = 'BORROWED' AND l.extend_number < 2 AND l.return_date > SYSTIMESTAMP THEN TRUE
                     ELSE FALSE
                 END as is_extendable,
                 CASE 
-                    WHEN l.status = 'NORMAL' AND l.extend_number < 2 AND l.return_date > SYSTIMESTAMP THEN '연장'
+                    WHEN l.status = 'BORROWED' AND l.extend_number < 2 AND l.return_date > SYSTIMESTAMP THEN '연장'
                     WHEN l.status = 'OVERDUE' THEN null
                     WHEN l.status = 'RESERVED' THEN '취소'
                     ELSE NULL
@@ -153,7 +153,7 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
         END IF;
 
         -- 상태 체크
-        IF v_status != 'NORMAL' THEN
+        IF v_status != 'BORROWED' THEN
             RETURN 0;
         END IF;
 
@@ -215,14 +215,14 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
 
         -- 연장 처리
         UPDATE loans
-        SET return_date = return_date + 7,  -- INTERVAL 대신 + 7 사용
+        SET return_date = return_date + 7,
             extend_number = extend_number + 1,
             updated_at = SYSTIMESTAMP
         WHERE loan_id = p_loan_id;
 
         COMMIT;
 
-        -- 연장 후 결과 반환 (명시적 컬럼 나열)
+        -- 연장 후 결과 반환
         OPEN p_result FOR
             SELECT
                 l.loan_id AS id,
@@ -232,7 +232,7 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
                 l.return_date,
                 CASE
                     WHEN l.return_date < SYSDATE THEN 'OVERDUE'
-                    ELSE 'NORMAL'
+                    ELSE 'BORROWED'
                 END AS status,
                 l.extend_number AS extensionCount,
                 b.title AS book_title,
@@ -249,7 +249,7 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
     
     -- 예약 취소
     PROCEDURE cancel_reservation(
-        p_reservation_id IN reservations.reservation_id%TYPE,
+        p_resv_id IN reservations.resv_id%TYPE,
         p_result OUT loan_cursor
     ) IS
         v_reservation reservations%ROWTYPE;
@@ -257,21 +257,21 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
         -- 예약 정보 조회
         SELECT * INTO v_reservation
         FROM reservations
-        WHERE reservation_id = p_reservation_id;
+        WHERE resv_id = p_resv_id;
 
         -- 삭제 전에 필요한 정보만 따로 보관
         OPEN p_result FOR
             SELECT
-                v_reservation.reservation_id AS id,
+                v_reservation.resv_id AS id,
                 v_reservation.user_id,
                 v_reservation.book_id,
-                v_reservation.reservation_date AS resv_date,
+                v_reservation.resv_date AS resv_date,
                 'CANCELLED' AS status
             FROM dual;
 
         -- 예약 취소 처리
         DELETE FROM reservations
-        WHERE reservation_id = p_reservation_id;
+        WHERE resv_id = p_resv_id;
         COMMIT;
     EXCEPTION
         WHEN NO_DATA_FOUND THEN
@@ -389,12 +389,12 @@ BEGIN
     v_new_status := :NEW.status;
     
     -- 상태 변경 로직
-    IF v_old_status = 'NORMAL' AND v_new_status = 'OVERDUE' THEN
+    IF v_old_status = 'BORROWED' AND v_new_status = 'OVERDUE' THEN
         -- 연체 처리
         loan_package.update_loan_status(:NEW.loan_id, 'OVERDUE');
-    ELSIF v_old_status = 'RESERVED' AND v_new_status = 'NORMAL' THEN
+    ELSIF v_old_status = 'RESERVED' AND v_new_status = 'BORROWED' THEN
         -- 예약에서 대출로 변경
-        loan_package.update_loan_status(:NEW.loan_id, 'NORMAL');
+        loan_package.update_loan_status(:NEW.loan_id, 'BORROWED');
     END IF;
 END;
 /

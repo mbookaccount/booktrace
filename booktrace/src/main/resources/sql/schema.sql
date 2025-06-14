@@ -42,7 +42,7 @@ CREATE SEQUENCE passbook_seq
     NOCYCLE;
 
 -- 도서관 테이블 생성
-CREATE TABLE library (
+CREATE TABLE libraries (
     library_id NUMBER PRIMARY KEY,
     name VARCHAR2(100) NOT NULL
 );
@@ -54,7 +54,7 @@ CREATE TABLE users (
     id VARCHAR2(50) NOT NULL UNIQUE,
     password VARCHAR2(100) NOT NULL,
     mileage NUMBER DEFAULT 0,
-    keywords VARCHAR2(4000),  -- JSON 배열 형태로 저장
+    interests VARCHAR2(4000),  -- JSON 배열 형태로 저장
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP,
     is_active NUMBER(1) DEFAULT 1 NOT NULL
@@ -70,10 +70,11 @@ CREATE TABLE books (
     published_date DATE,
     category VARCHAR2(50),
     available_amount NUMBER DEFAULT 0,
-    borrow_count NUMBER DEFAULT 0,  -- 대출 횟수
+    borrow_count NUMBER DEFAULT 0,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP,
-    FOREIGN KEY (library_id) REFERENCES library(library_id)
+    cover_image VARCHAR2(500) NOT NULL,
+    FOREIGN KEY (library_id) REFERENCES libraries(library_id)
 );
 
 -- 대출 테이블 생성
@@ -84,7 +85,7 @@ CREATE TABLE loans (
     borrow_date TIMESTAMP NOT NULL,
     extend_number NUMBER DEFAULT 0,
     return_date TIMESTAMP,
-    status VARCHAR2(20) DEFAULT 'NORMAL',
+    status VARCHAR2(20) DEFAULT 'BORROWED',
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
@@ -92,7 +93,7 @@ CREATE TABLE loans (
 );
 
 -- 예약 테이블 생성
-CREATE TABLE reservation (
+CREATE TABLE reservations (
     resv_id NUMBER PRIMARY KEY,
     user_id NUMBER NOT NULL,
     book_id NUMBER NOT NULL,
@@ -116,6 +117,14 @@ CREATE TABLE reading_log (
     updated_at TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (book_id) REFERENCES books(book_id)
+);
+
+-- 사용자 선호 카테고리 테이블 생성
+CREATE TABLE user_preferred_categories (
+    user_id NUMBER NOT NULL,
+    category VARCHAR2(50) NOT NULL,
+    PRIMARY KEY (user_id, category),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
 -- 대출 시 borrow_count 증가 트리거

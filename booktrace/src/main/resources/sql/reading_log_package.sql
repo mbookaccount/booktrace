@@ -19,12 +19,12 @@ CREATE OR REPLACE PACKAGE reading_log_package AS
         user_id reading_log.user_id%TYPE,
         book_id reading_log.book_id%TYPE,
         book_title books.title%TYPE,
-        borrow_date DATE,
-        return_date DATE,
+        borrow_date TIMESTAMP,
+        return_date TIMESTAMP,
         mileage NUMBER,
         total_mileage NUMBER,
-        created_at DATE,
-        updated_at DATE
+        created_at TIMESTAMP,
+        updated_at TIMESTAMP
     );
     
     -- 사용자의 독서 로그 목록 조회
@@ -37,8 +37,8 @@ CREATE OR REPLACE PACKAGE reading_log_package AS
     FUNCTION save_reading_log(
         p_user_id IN reading_log.user_id%TYPE,
         p_book_id IN reading_log.book_id%TYPE,
-        p_borrow_date IN DATE,
-        p_return_date IN DATE,
+        p_borrow_date IN TIMESTAMP,
+        p_return_date IN TIMESTAMP,
         p_mileage IN NUMBER,
         p_total_mileage IN NUMBER
     ) RETURN reading_log.log_id%TYPE;
@@ -51,7 +51,7 @@ CREATE OR REPLACE PACKAGE reading_log_package AS
     -- 독서 로그 수정
     PROCEDURE update_reading_log(
         p_log_id IN reading_log.log_id%TYPE,
-        p_return_date IN DATE,
+        p_return_date IN TIMESTAMP,
         p_mileage IN NUMBER,
         p_total_mileage IN NUMBER
     );
@@ -88,13 +88,13 @@ CREATE OR REPLACE PACKAGE BODY reading_log_package AS
     FUNCTION save_reading_log(
         p_user_id IN reading_log.user_id%TYPE,
         p_book_id IN reading_log.book_id%TYPE,
-        p_borrow_date IN DATE,
-        p_return_date IN DATE,
+        p_borrow_date IN TIMESTAMP,
+        p_return_date IN TIMESTAMP,
         p_mileage IN NUMBER,
         p_total_mileage IN NUMBER
     ) RETURN reading_log.log_id%TYPE IS
         v_log_id reading_log.log_id%TYPE;
-        v_current_time DATE := SYSDATE;
+        v_current_time TIMESTAMP := SYSTIMESTAMP;
     BEGIN
         -- 날짜 유효성 검사
         IF p_borrow_date > p_return_date THEN
@@ -131,11 +131,11 @@ CREATE OR REPLACE PACKAGE BODY reading_log_package AS
     -- 독서 로그 수정
     PROCEDURE update_reading_log(
         p_log_id IN reading_log.log_id%TYPE,
-        p_return_date IN DATE,
+        p_return_date IN TIMESTAMP,
         p_mileage IN NUMBER,
         p_total_mileage IN NUMBER
     ) IS
-        v_borrow_date DATE;
+        v_borrow_date TIMESTAMP;
     BEGIN
         -- 대출일 조회
         SELECT borrow_date INTO v_borrow_date
@@ -152,7 +152,7 @@ CREATE OR REPLACE PACKAGE BODY reading_log_package AS
         SET return_date = p_return_date,
             mileage = p_mileage,
             total_mileage = p_total_mileage,
-            updated_at = SYSDATE
+            updated_at = SYSTIMESTAMP
         WHERE log_id = p_log_id;
         
         IF SQL%ROWCOUNT = 0 THEN
