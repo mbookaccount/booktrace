@@ -49,6 +49,25 @@ public class UserRepository  {
 
         return jdbcCall.execute(inParams);
     }
+    public Long loginUser(String loginId, String password) {
+        SimpleJdbcCall jdbcCall = new SimpleJdbcCall(jdbcTemplate)
+                .withProcedureName("LOGIN_USER_SIMPLE")
+                .withoutProcedureColumnMetaDataAccess()
+                .declareParameters(
+                        new SqlParameter("p_login_id", Types.VARCHAR),
+                        new SqlParameter("p_password", Types.VARCHAR),
+                        new SqlOutParameter("p_user_id", Types.NUMERIC)
+                );
+
+        Map<String, Object> inParams = new HashMap<>();
+        inParams.put("p_login_id", loginId);
+        inParams.put("p_password", password);
+
+        Map<String, Object> out = jdbcCall.execute(inParams);
+
+        Object userIdObj = out.get("p_user_id");
+        return (userIdObj != null) ? ((Number) userIdObj).longValue() : null;
+    }
 
     public int countByUserId(String userId) {
         String sql = "SELECT COUNT(*) FROM USERS WHERE LOGIN_ID = ?";
