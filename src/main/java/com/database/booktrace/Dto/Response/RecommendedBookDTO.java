@@ -1,13 +1,15 @@
 package com.database.booktrace.Dto.Response;
 
 import com.database.booktrace.Domain.BookCategory;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Getter
-@Setter
+@Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class RecommendedBookDTO {
     private Long bookId;
     private String title;
@@ -18,5 +20,5 @@ public class RecommendedBookDTO {
     private String description;
     private Integer availableAmount; //가능한 대출 수
     private Boolean isAvailable;
-    private Integer reservationCount; //예약 수
+    private Long reservationCount;
 }
