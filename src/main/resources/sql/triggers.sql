@@ -25,35 +25,6 @@ BEGIN
 END;
 /
 
--- RETURNED 시 마일리지 자동 적립
-CREATE OR REPLACE TRIGGER TRG_MILEAGE_REWARD
-    AFTER INSERT ON LOANS
-    FOR EACH ROW
-DECLARE
-    v_current_mileage USERS.MILEAGE%TYPE;
-    v_bonus_points NUMBER := 1;
-BEGIN
-    SELECT MILEAGE INTO v_current_mileage
-    FROM USERS
-    WHERE USER_ID = :NEW.USER_ID;
-
-    IF v_current_mileage = 0 THEN
-        v_bonus_points := 10;
-    END IF;
-
-    UPDATE USERS
-    SET MILEAGE = MILEAGE + v_bonus_points,
-        UPDATED_AT = SYSDATE
-    WHERE USER_ID = :NEW.USER_ID;
-
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE('사용자를 찾을 수 없음');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('마일리지 적립 오류: ' || SQLERRM);
-END;
-/
-
 -- 시퀀스 트리거 추가
 CREATE OR REPLACE TRIGGER TRG_LOANS_ID
     BEFORE INSERT ON LOANS
@@ -71,5 +42,60 @@ BEGIN
     IF :NEW.RESV_ID IS NULL THEN
         :NEW.RESV_ID := resv_seq.NEXTVAL;
     END IF;
+END;
+/
+CREATE OR REPLACE TRIGGER TRG_INSERT_READING_LOG
+    AFTER UPDATE ON LOANS
+    FOR EACH ROW
+    WHEN (OLD.STATUS = 'BORROWED' AND NEW.STATUS = 'RETURNED')
+DECLARE
+    v_mileage NUMBER;
+    v_current_total_mileage NUMBER;
+BEGIN
+    -- 마일리지 계산 (정시 반납: 1점, 연체 시 0점)
+    IF :NEW.updated_at <= :NEW.return_date THEN
+        v_mileage := 1;  -- 정시 반납 시 1점
+    ELSE
+        v_mileage := 0;  -- 연체 시 0점
+    END IF;
+
+    -- 현재 사용자의 총 마일리지 조회
+    SELECT COALESCE(mileage, 0) INTO v_current_total_mileage
+    FROM users WHERE user_id = :NEW.user_id;
+
+    -- 🔥 users 테이블 마일리지 증가 (이 부분이 빠져있었음!)
+    UPDATE users
+    SET mileage = mileage + v_mileage,
+        updated_at = SYSTIMESTAMP
+    WHERE user_id = :NEW.user_id;
+
+    -- reading_log 테이블에 반납 기록 삽입
+    INSERT INTO reading_log (
+        log_id,
+        user_id,
+        book_id,
+        borrow_date,
+        return_date,
+        mileage,
+        total_mileage,
+        created_at,
+        updated_at
+    ) VALUES (
+        LOG_SEQ.NEXTVAL,
+        :NEW.user_id,
+        :NEW.book_id,
+        :NEW.borrow_date,
+        :NEW.updated_at,
+        v_mileage,
+        v_current_total_mileage + v_mileage,  -- 증가 후 총 마일리지
+        SYSTIMESTAMP,
+        SYSTIMESTAMP
+    );
+
+    DBMS_OUTPUT.PUT_LINE('독서통장 기록 추가 + 마일리지 증가: +' || v_mileage);
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('독서통장/마일리지 처리 오류: ' || SQLERRM);
 END;
 /
