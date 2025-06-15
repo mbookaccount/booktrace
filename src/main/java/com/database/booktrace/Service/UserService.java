@@ -34,8 +34,8 @@ public class UserService {
         return dto;
     }
 
-    public boolean changePassword(Long userId, String currentRaw, String newRaw) {
-        return userRepository.updateUserPassword(userId, currentRaw, newRaw);  // 평문 그대로 전달
+    public boolean changePassword(Long userId,String newRaw) {
+        return userRepository.updateUserPassword(userId, newRaw);  // 평문 그대로 전달
     }
 
     public void updateInterests(Long userId, Set<String> interests) {

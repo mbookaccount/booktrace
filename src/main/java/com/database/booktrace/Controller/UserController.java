@@ -82,7 +82,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("로그인이 필요합니다.");
         }
 
-        boolean success = userService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword());
+        boolean success = userService.changePassword(userId, request.getNewPassword());
         return success ? ResponseEntity.ok("비밀번호 변경 성공")
                 : ResponseEntity.status(HttpStatus.BAD_REQUEST).body("현재 비밀번호가 일치하지 않습니다.");
     }
