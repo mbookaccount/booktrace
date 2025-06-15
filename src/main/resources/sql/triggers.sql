@@ -44,6 +44,7 @@ BEGIN
     END IF;
 END;
 /
+
 CREATE OR REPLACE TRIGGER TRG_INSERT_READING_LOG
     AFTER UPDATE ON LOANS
     FOR EACH ROW
@@ -51,19 +52,25 @@ CREATE OR REPLACE TRIGGER TRG_INSERT_READING_LOG
 DECLARE
     v_mileage NUMBER;
     v_current_total_mileage NUMBER;
+    v_cutoff_time TIMESTAMP := TO_TIMESTAMP('2025-06-16 08:00:00', 'YYYY-MM-DD HH24:MI:SS');
 BEGIN
+    -- 특정 시간 이후 반납된 것만 처리
+    IF :NEW.updated_at < v_cutoff_time THEN
+        RETURN; -- 조기 종료, 독서통장에 기록하지 않음
+    END IF;
+
     -- 마일리지 계산 (정시 반납: 1점, 연체 시 0점)
     IF :NEW.updated_at <= :NEW.return_date THEN
-        v_mileage := 1;  -- 정시 반납 시 1점
+        v_mileage := 1;
     ELSE
-        v_mileage := 0;  -- 연체 시 0점
+        v_mileage := 0;
     END IF;
 
     -- 현재 사용자의 총 마일리지 조회
     SELECT COALESCE(mileage, 0) INTO v_current_total_mileage
     FROM users WHERE user_id = :NEW.user_id;
 
-    -- 🔥 users 테이블 마일리지 증가 (이 부분이 빠져있었음!)
+    -- users 테이블 마일리지 증가
     UPDATE users
     SET mileage = mileage + v_mileage,
         updated_at = SYSTIMESTAMP
@@ -87,7 +94,7 @@ BEGIN
         :NEW.borrow_date,
         :NEW.updated_at,
         v_mileage,
-        v_current_total_mileage + v_mileage,  -- 증가 후 총 마일리지
+        v_current_total_mileage + v_mileage,
         SYSTIMESTAMP,
         SYSTIMESTAMP
     );
