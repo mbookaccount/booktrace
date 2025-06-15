@@ -38,7 +38,15 @@ public class ReadingLogRepository {
             ResultSet rs = (ResultSet) cs.getObject(2);
 
             while (rs.next()) {
-                logs.add(mapReadingLogResponse(rs));
+                ReadingLogResponse response = new ReadingLogResponse();
+                response.setUserLogNumber(rs.getInt("user_log_number"));
+                response.setBookTitle(rs.getString("book_title"));
+                response.setMileage(rs.getInt("mileage"));
+                response.setTotalMileage(rs.getInt("total_mileage"));
+                response.setBorrowDate(rs.getTimestamp("borrow_date").toLocalDateTime().toLocalDate());
+                response.setReturnDate(rs.getTimestamp("return_date") != null ? 
+                    rs.getTimestamp("return_date").toLocalDateTime().toLocalDate() : null);
+                logs.add(response);
             }
 
             return logs;
@@ -47,24 +55,6 @@ public class ReadingLogRepository {
             handleSQLException(e, "사용자의 독서 로그를 조회하는 중 오류가 발생했습니다.");
             throw new RuntimeException("독서 로그 조회 중 오류가 발생했습니다.", e);
         }
-    }
-
-    /**
-     * ResultSet을 ReadingLog 객체로 매핑합니다.
-     * @param rs ResultSet 객체
-     * @return ReadingLogResponse 객체
-     * @throws SQLException SQL 예외 발생 시
-     */
-    private ReadingLogResponse mapReadingLogResponse(ResultSet rs) throws SQLException {
-        ReadingLogResponse response = new ReadingLogResponse();
-        response.setUserLogNumber(rs.getInt("user_log_number"));
-        response.setBookTitle(rs.getString("book_title"));
-        response.setMileage(rs.getInt("mileage"));
-        response.setTotalMileage(rs.getInt("total_mileage"));
-        response.setBorrowDate(rs.getTimestamp("borrow_date").toLocalDateTime().toLocalDate());
-        response.setReturnDate(rs.getTimestamp("return_date") != null ? 
-            rs.getTimestamp("return_date").toLocalDateTime().toLocalDate() : null);
-        return response;
     }
 
     /**
