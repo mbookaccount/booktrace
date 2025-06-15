@@ -3,7 +3,6 @@ package com.database.booktrace.Repository;
 import com.database.booktrace.Dto.Response.PopularBookDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.dialect.OracleTypes;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
@@ -24,7 +23,7 @@ public class PopularRepository {
      * @return 주간 인기 도서 목록
      */
     public List<PopularBookDTO> findWeeklyPopularBooks() {
-        return findPopularBooks("popular_package.get_weekly_popular_books");
+        return findPopularBooks("weekly_popular_books_view");
     }
 
     /**
@@ -32,25 +31,22 @@ public class PopularRepository {
      * @return 월간 인기 도서 목록
      */
     public List<PopularBookDTO> findMonthlyPopularBooks() {
-        return findPopularBooks("popular_package.get_monthly_popular_books");
+        return findPopularBooks("monthly_popular_books_view");
     }
 
     /**
      * 인기 도서 목록을 조회하는 공통 메서드입니다.
-     * @param procedureName 호출할 프로시저 이름
+     * @param viewName 조회할 View 이름
      * @return 인기 도서 목록
      */
-    private List<PopularBookDTO> findPopularBooks(String procedureName) {
-        try (Connection conn = dataSource.getConnection();
-             CallableStatement cs = conn.prepareCall(
-                "{ call " + procedureName + "(?) }"
-             )) {
+    private List<PopularBookDTO> findPopularBooks(String viewName) {
+        String sql = "SELECT * FROM " + viewName;
 
-            cs.registerOutParameter(1, OracleTypes.CURSOR);
-            cs.execute();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
 
             List<PopularBookDTO> books = new ArrayList<>();
-            ResultSet rs = (ResultSet) cs.getObject(1);
             while (rs.next()) {
                 books.add(mapPopularBook(rs));
             }
@@ -72,8 +68,6 @@ public class PopularRepository {
         PopularBookDTO book = new PopularBookDTO();
         book.setBookId(rs.getLong("book_id"));
         book.setTitle(rs.getString("title"));
-        book.setAuthor(rs.getString("author"));
-        book.setPublisher(rs.getString("publisher"));
         book.setCoverImage(rs.getString("cover_image"));
         return book;
     }

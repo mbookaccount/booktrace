@@ -21,8 +21,8 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<?> getMyInfo(HttpSession session) {
         // 세션 체크 (401 Unauthorized)
-        String username = (String) session.getAttribute("username");
-        if (username == null) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) {
             ErrorResponse error = new ErrorResponse(
                 false,
                 "로그인이 필요합니다.",
@@ -34,7 +34,7 @@ public class UserController {
         }
 
         try {
-            UserDTO userDTO = userService.getUserInfo(username);
+            UserDTO userDTO = userService.getUserInfo(userId);
             
             // 사용자 존재 여부 체크 (404 Not Found)
             if (userDTO == null) {

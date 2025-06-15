@@ -253,52 +253,56 @@ public class UserRepository  {
     }
 
     public Optional<User> findByUserId(Long userId) {
-        SimpleJdbcCall jdbcCall = new SimpleJdbcCall(jdbcTemplate)
-                .withProcedureName("GET_USER_BY_ID")
-                .withoutProcedureColumnMetaDataAccess()
-                .declareParameters(
-                        new SqlParameter("p_user_id", Types.NUMERIC),
-                        new SqlOutParameter("p_user_name", Types.VARCHAR),
-                        new SqlOutParameter("p_login_id", Types.VARCHAR),
-                        new SqlOutParameter("p_password", Types.VARCHAR),
-                        new SqlOutParameter("p_mileage", Types.NUMERIC),
-                        new SqlOutParameter("p_interests", Types.VARCHAR),
-                        new SqlOutParameter("p_created_at", Types.TIMESTAMP),
-                        new SqlOutParameter("p_updated_at", Types.TIMESTAMP),
-                        new SqlOutParameter("p_is_active", Types.CHAR)
-                );
+        String sql = "SELECT " +
+                    "    u.user_id, " +
+                    "    u.user_name, " +
+                    "    u.login_id, " +
+                    "    u.password, " +
+                    "    u.mileage, " +
+                    "    u.interests, " +
+                    "    u.created_at, " +
+                    "    u.updated_at, " +
+                    "    u.is_active " +
+                    "FROM users u " +
+                    "WHERE u.user_id = ? AND u.is_active = 'Y'";
 
-        Map<String, Object> inParams = new HashMap<>();
-        inParams.put("p_user_id", userId);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-        Map<String, Object> out = jdbcCall.execute(inParams);
+            pstmt.setLong(1, userId);
+            ResultSet rs = pstmt.executeQuery();
 
-        if (out.get("p_login_id") == null) {
-            return Optional.empty();
-        }
+            if (rs.next()) {
+                User user = new User();
+                user.setUserId(rs.getLong("user_id"));
+                user.setUserName(rs.getString("user_name"));
+                user.setLoginId(rs.getString("login_id"));
+                user.setPassword(rs.getString("password"));
+                user.setMileage(rs.getInt("mileage"));
 
-        User user = new User();
-        user.setUserId(userId);
-        user.setUserName((String) out.get("p_user_name"));
-        user.setLoginId((String) out.get("p_login_id"));
-        user.setPassword((String) out.get("p_password"));
-        user.setMileage(((Number) out.get("p_mileage")).intValue());
-        
-        String interestsJson = (String) out.get("p_interests");
-        if (interestsJson != null && !interestsJson.isEmpty()) {
-            try {
-                Set<BookCategory> interests = objectMapper.readValue(interestsJson, new TypeReference<HashSet<BookCategory>>() {});
-                user.setPreferredCategories(interests);
-            } catch (JsonProcessingException e) {
-                log.error("Error parsing interests JSON: {}", e.getMessage());
+                String interestsJson = rs.getString("interests");
+                if (interestsJson != null && !interestsJson.isEmpty()) {
+                    try {
+                        Set<BookCategory> interests = objectMapper.readValue(interestsJson,
+                            new TypeReference<HashSet<BookCategory>>() {});
+                        user.setPreferredCategories(interests);
+                    } catch (JsonProcessingException e) {
+                        log.error("Error parsing interests JSON: {}", e.getMessage());
+                    }
+                }
+
+                user.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
+                Timestamp updatedAt = rs.getTimestamp("updated_at");
+                user.setUpdatedAt(updatedAt != null ? updatedAt.toLocalDateTime() : null);
+                user.setIsActive(rs.getString("is_active").charAt(0));
+
+                return Optional.of(user);
             }
+            return Optional.empty();
+
+        } catch (SQLException e) {
+            log.error("Error finding user by ID: {}", e.getMessage(), e);
+            throw new RuntimeException("Error finding user by ID", e);
         }
-
-        user.setCreatedAt(((Timestamp) out.get("p_created_at")).toLocalDateTime());
-        Timestamp updatedAt = (Timestamp) out.get("p_updated_at");
-        user.setUpdatedAt(updatedAt != null ? updatedAt.toLocalDateTime() : null);
-        user.setIsActive(((String) out.get("p_is_active")).charAt(0));
-
-        return Optional.of(user);
     }
 }

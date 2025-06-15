@@ -13,12 +13,12 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    public UserDTO getUserInfo(String username) {
-        if (username == null || username.trim().isEmpty()) {
-            throw new IllegalArgumentException("Username cannot be null or empty");
+    public UserDTO getUserInfo(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("userId cannot be null or empty");
         }
 
-        return userRepository.findByUsername(username)
+        return userRepository.findByUserId(userId)
                 .map(this::convertToDTO)
                 .orElse(null);
     }

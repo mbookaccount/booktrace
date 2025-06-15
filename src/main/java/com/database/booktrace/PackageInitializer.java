@@ -23,7 +23,6 @@ public class PackageInitializer {
     @PostConstruct
     public void initializePackages() throws Exception {
         runScript("sql/loan_package.sql");
-        runScript("sql/popular_package.sql");
         runScript("sql/popular_book_package.sql");
         runScript("sql/reading_log_package.sql");
         runScript("sql/triggers.sql");
