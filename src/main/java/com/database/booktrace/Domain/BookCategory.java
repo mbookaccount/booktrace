@@ -4,14 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum BookCategory {
-    //    HEALTH("건강"),
-//    ECONOMY("경제"),
-//    SCIENCE("과학"),
-//    TECHNOLOGY("기술"),
-//    LITERATURE("문학"),
-//    NOVEL("소설"),
-//    HISTORY("역사"),
-//    SELF_DEVELOPMENT("자기계발");
     HEALTH("HEALTH", "건강"),
     ECONOMY("ECONOMY", "경제"),
     SCIENCE("SCIENCE", "과학"),

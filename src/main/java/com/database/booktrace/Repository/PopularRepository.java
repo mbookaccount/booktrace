@@ -71,4 +71,4 @@ public class PopularRepository {
         book.setCoverImage(rs.getString("cover_image"));
         return book;
     }
-} 
+}

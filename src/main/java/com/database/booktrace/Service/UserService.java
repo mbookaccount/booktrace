@@ -39,4 +39,4 @@ public class UserService {
     public void updateInterests(Long userId, Set<String> interests) {
         userRepository.updateUserInterests(userId, interests);
     }
-} 
+}

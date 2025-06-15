@@ -129,7 +129,7 @@ public class UserRepository  {
         user.setLoginId(username);
         user.setPassword((String) out.get("p_password"));
         user.setMileage(((Number) out.get("p_mileage")).intValue());
-        
+
         String interestsJson = (String) out.get("p_interests");
         if (interestsJson != null && !interestsJson.isEmpty()) {
             try {
@@ -254,17 +254,17 @@ public class UserRepository  {
 
     public Optional<User> findByUserId(Long userId) {
         String sql = "SELECT " +
-                    "    u.user_id, " +
-                    "    u.user_name, " +
-                    "    u.login_id, " +
-                    "    u.password, " +
-                    "    u.mileage, " +
-                    "    u.interests, " +
-                    "    u.created_at, " +
-                    "    u.updated_at, " +
-                    "    u.is_active " +
-                    "FROM users u " +
-                    "WHERE u.user_id = ? AND u.is_active = 'Y'";
+                "    u.user_id, " +
+                "    u.user_name, " +
+                "    u.login_id, " +
+                "    u.password, " +
+                "    u.mileage, " +
+                "    u.interests, " +
+                "    u.created_at, " +
+                "    u.updated_at, " +
+                "    u.is_active " +
+                "FROM users u " +
+                "WHERE u.user_id = ? AND u.is_active = 'Y'";
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -284,7 +284,7 @@ public class UserRepository  {
                 if (interestsJson != null && !interestsJson.isEmpty()) {
                     try {
                         Set<BookCategory> interests = objectMapper.readValue(interestsJson,
-                            new TypeReference<HashSet<BookCategory>>() {});
+                                new TypeReference<HashSet<BookCategory>>() {});
                         user.setPreferredCategories(interests);
                     } catch (JsonProcessingException e) {
                         log.error("Error parsing interests JSON: {}", e.getMessage());

@@ -20,7 +20,7 @@ import java.util.Map;
 @RequestMapping("/api/loans")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "*") // 프론트엔드 연동을 위한 CORS 설정
+@CrossOrigin(origins = "http://localhost:3000")
 public class LoanController {
 
     private final LoanService loanService;
