@@ -25,7 +25,7 @@ public class ReadingLogController {
      * @param session HTTP 세션
      * @return 독서 로그 응답 목록
      */
-    @GetMapping("/reading-logs")
+    @GetMapping("/reading-log")
     public ResponseEntity<?> getMyReadingLogs(HttpSession session) {
         // 세션에서 사용자 ID 가져오기
         Long userId = (Long) session.getAttribute("userId");
