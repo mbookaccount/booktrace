@@ -183,20 +183,20 @@ public class LoanRepository {
         }
     }
 
-    // 예약 취소
     public CancelResvResponse cancelReservation(Long reservationId) {
         try (Connection conn = dataSource.getConnection();
              CallableStatement cs = conn.prepareCall(
-                     "{ call loan_package.cancel_reservation(?) }"
+                     "{ call loan_package.cancel_reservation(?, ?) }"
              )) {
 
             cs.setLong(1, reservationId);
+            cs.registerOutParameter(2, OracleTypes.CURSOR); // OUT 파라미터 등록
             cs.execute();
 
-            ResultSet rs = (ResultSet) cs.getObject(2);
+            ResultSet rs = (ResultSet) cs.getObject(2); // 이제 가능!
             if (rs.next()) {
                 CancelResvResponse response = new CancelResvResponse();
-                response.setId(rs.getLong("id"));
+                response.setId(rs.getLong("resv_id"));
                 response.setUserId(rs.getLong("user_id"));
                 response.setBookId(rs.getLong("book_id"));
                 response.setResvDate(rs.getTimestamp("resv_date").toLocalDateTime());
@@ -210,6 +210,7 @@ public class LoanRepository {
             return null;
         }
     }
+
 
     // 도서 예약 여부 확인
     public boolean hasReservation(Long bookId) {

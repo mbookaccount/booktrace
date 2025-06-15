@@ -194,7 +194,7 @@ public class LoanController {
     }
 
     @DeleteMapping("/cancel")
-    public ResponseEntity<?> cancelResv(CancelResvRequest request){
+    public ResponseEntity<?> cancelResv(@RequestBody CancelResvRequest request){
         try{
             CancelResvResponse cancelResvResponse = loanService.cancelResv(request.getReservationId());
             return ResponseEntity.ok(cancelResvResponse);
