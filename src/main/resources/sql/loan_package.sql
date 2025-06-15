@@ -458,36 +458,62 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
             RAISE loan_exceptions.not_found_exception;
     END extend_loan;
 
-    -- 예약 취소
     PROCEDURE cancel_reservation(
-        p_resv_id IN reservations.resv_id%TYPE,
-        p_result OUT loan_cursor
-    ) IS
-        v_reservation reservations%ROWTYPE;
-    BEGIN
-        -- 예약 정보 조회
-        SELECT * INTO v_reservation
-        FROM reservations
-        WHERE resv_id = p_resv_id;
+    p_resv_id IN reservations.resv_id%TYPE,
+    p_result OUT loan_cursor
+) IS
+    v_reservation reservations%ROWTYPE;
+    v_count NUMBER := 0;
+BEGIN
+    -- 디버깅: 실제 전달된 파라미터 확인
+    DBMS_OUTPUT.PUT_LINE('=== 예약 취소 시작 ===');
+    DBMS_OUTPUT.PUT_LINE('전달받은 resv_id: ' || p_resv_id);
 
-        -- 삭제 전에 필요한 정보만 따로 보관
-        OPEN p_result FOR
-            SELECT
-                v_reservation.resv_id AS id,
-                v_reservation.user_id,
-                v_reservation.book_id,
-                v_reservation.resv_date AS resv_date,
-                'CANCELLED' AS status
-            FROM dual;
+    -- 먼저 해당 ID가 존재하는지 확인
+    SELECT COUNT(*) INTO v_count
+    FROM reservations
+    WHERE resv_id = p_resv_id;
 
-        -- 예약 취소 처리
-        DELETE FROM reservations
-        WHERE resv_id = p_resv_id;
-        COMMIT;
-    EXCEPTION
-        WHEN NO_DATA_FOUND THEN
-            RAISE loan_exceptions.not_found_exception;
-    END cancel_reservation;
+    DBMS_OUTPUT.PUT_LINE('찾은 예약 개수: ' || v_count);
+
+    IF v_count = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('예약을 찾을 수 없음!');
+        RAISE_APPLICATION_ERROR(-20001, '예약 ID ' || p_resv_id || '를 찾을 수 없습니다.');
+    END IF;
+
+    -- 예약 정보 조회
+    SELECT * INTO v_reservation
+    FROM reservations
+    WHERE resv_id = p_resv_id;
+
+    DBMS_OUTPUT.PUT_LINE('예약 정보 조회 성공 - 상태: ' || v_reservation.status);
+
+    -- 결과 반환
+    OPEN p_result FOR
+        SELECT
+            v_reservation.resv_id AS "ID",      -- 대문자로 수정
+            v_reservation.user_id AS "USER_ID",
+            v_reservation.book_id AS "BOOK_ID",
+            v_reservation.resv_date AS "RESV_DATE",
+            'CANCELLED' AS "STATUS"
+        FROM dual;
+
+    -- 예약 취소 처리
+    DELETE FROM reservations
+    WHERE resv_id = p_resv_id;
+
+    DBMS_OUTPUT.PUT_LINE('예약 삭제 완료');
+    COMMIT;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('NO_DATA_FOUND 예외 발생!');
+        RAISE_APPLICATION_ERROR(-20004, '예약 ID ' || p_resv_id || '를 찾을 수 없습니다.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('기타 예외: ' || SQLERRM);
+        ROLLBACK;
+        RAISE;
+END cancel_reservation;
 
     -- 도서 예약 여부 확인
     FUNCTION has_reservation(

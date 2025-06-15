@@ -5,6 +5,6 @@ import lombok.Data;
 
 @Data
 public class CancelResvRequest {
-    @JsonProperty(value="reservationId")
+    //@JsonProperty(value="reservationId")
     private Long reservationId;
 }
