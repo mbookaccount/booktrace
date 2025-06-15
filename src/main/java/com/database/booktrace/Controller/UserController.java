@@ -5,12 +5,18 @@ import com.database.booktrace.Dto.Request.PasswordChangeRequest;
 import com.database.booktrace.Dto.Response.ErrorResponse;
 import com.database.booktrace.Dto.Response.UserDTO;
 import com.database.booktrace.Service.UserService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -93,4 +99,58 @@ public class UserController {
         return ResponseEntity.ok("관심 키워드가 저장되었습니다.");
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpSession session, HttpServletResponse response) {
+        // 세션에서 사용자 ID 가져오기
+        Long userId = (Long) session.getAttribute("userId");
+        
+        if (userId == null) {
+            ErrorResponse error = new ErrorResponse(
+                false,
+                "이미 로그아웃된 상태입니다.",
+                "AlreadyLoggedOut"
+            );
+            return ResponseEntity
+                .status(400)
+                .body(error);
+        }
+
+        // 세션의 모든 속성 제거
+        Enumeration<String> attributeNames = session.getAttributeNames();
+        while (attributeNames.hasMoreElements()) {
+            String attributeName = attributeNames.nextElement();
+            session.removeAttribute(attributeName);
+        }
+
+        // 세션 무효화
+        session.invalidate();
+        
+        // JSESSIONID 쿠키 제거
+        Cookie jsessionCookie = new Cookie("JSESSIONID", null);
+        jsessionCookie.setPath("/");
+        jsessionCookie.setMaxAge(0);
+        jsessionCookie.setHttpOnly(true);
+        response.addCookie(jsessionCookie);
+
+        // 추가 쿠키 제거 (프론트엔드에서 사용하는 쿠키들)
+        String[] cookieNames = {"userId", "userName", "loginId", "userInfo"};
+        for (String cookieName : cookieNames) {
+            Cookie cookie = new Cookie(cookieName, null);
+            cookie.setPath("/");
+            cookie.setMaxAge(0);
+            response.addCookie(cookie);
+        }
+        
+        log.info("User ID: {} logged out successfully", userId);
+        
+        // 로그아웃 성공 응답에 추가 정보 포함
+        Map<String, Object> responseBody = new HashMap<>();
+        responseBody.put("success", true);
+        responseBody.put("message", "로그아웃이 완료되었습니다.");
+        responseBody.put("error", "LogoutSuccess");
+        responseBody.put("requireRefresh", true);  // 프론트엔드에서 페이지 새로고침 필요
+        
+        return ResponseEntity.ok(responseBody);
+    }
+    
 }
