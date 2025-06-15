@@ -12,12 +12,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.dialect.OracleTypes;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlOutParameter;
+import org.springframework.jdbc.core.SqlParameter;
+import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 @RequiredArgsConstructor
@@ -30,58 +35,76 @@ public class LoanRepository {
 
     public final JdbcTemplate jdbcTemplate;
     private final DataSource dataSource;
+    public Map<String, Object> advancedBorrowEbook(Long userId, Long bookId) {
+        SimpleJdbcCall jdbcCall = new SimpleJdbcCall(dataSource)
+                .withProcedureName("loan_package.BORROW_BOOK")
+                .withoutProcedureColumnMetaDataAccess()
+                .declareParameters(
+                        new SqlParameter("p_user_id", Types.NUMERIC),
+                        new SqlParameter("p_book_id", Types.NUMERIC),
+                        new SqlOutParameter("p_result", Types.INTEGER),
+                        new SqlOutParameter("p_message", Types.VARCHAR),
+                        new SqlOutParameter("p_loan_id", Types.NUMERIC)
+                );
 
-    public LoanResponseDTO borrowBookUsingProcedure(LoanRequestDTO request) {
-        return jdbcTemplate.execute((Connection connection) -> {
-            // Callable Statement 생성
-            String sql = "{call BORROW_BOOK(?, ?, ?, ?, ?)}";
+        Map<String, Object> inParams = new HashMap<>();
+        inParams.put("p_user_id", userId);
+        inParams.put("p_book_id", bookId);
 
-            try (CallableStatement callableStatement = connection.prepareCall(sql)) {
-                // IN 매개변수 설정
-                callableStatement.setLong(1, request.getUserId());
-                callableStatement.setLong(2, request.getBookId());
-                callableStatement.setLong(3, request.getLibraryId());
-
-                // OUT 매개변수 등록
-                callableStatement.registerOutParameter(4, Types.NUMERIC); // p_loan_id
-                callableStatement.registerOutParameter(5, Types.VARCHAR); // p_result
-
-                // 프로시저 실행
-                callableStatement.execute();
-
-                // 결과 가져오기
-                Long loanId = callableStatement.getLong(4);
-                String result = callableStatement.getString(5);
-
-                log.info("PL/SQL 프로시저 실행 결과: loanId={}, result={}", loanId, result);
-
-                // 결과 분석해서 DTO 반환
-                if (result.startsWith("SUCCESS")) {
-                    return LoanResponseDTO.success(loanId, result);
-                } else {
-                    return LoanResponseDTO.failure(result);
-                }
-
-            } catch (SQLException e) {
-                log.error("PL/SQL 프로시저 호출 중 오류 발생", e);
-                return LoanResponseDTO.failure("시스템 오류: " + e.getMessage());
-            }
-        });
-
-
+        return jdbcCall.execute(inParams);
     }
-    public boolean checkBookAvailability(Long bookId, Long libraryId) {
-            String sql = """
-            SELECT COUNT(*)
-            FROM BOOKS
-            WHERE BOOK_ID = ?
-            AND LIBRARY_ID = ?
-            AND NVL(AVAILABLE_AMOUNT, 0) > 0
-            """;
-
-            Integer count = jdbcTemplate.queryForObject(sql, Integer.class, bookId, libraryId);
-            return count != null && count > 0;
-        }
+//
+//    public LoanResponseDTO borrowBookUsingProcedure(LoanRequestDTO request) {
+//        return jdbcTemplate.execute((Connection connection) -> {
+//            // Callable Statement 생성
+//            String sql = "{call BORROW_BOOK(?, ?, ?, ?, ?)}";
+//
+//            try (CallableStatement callableStatement = connection.prepareCall(sql)) {
+//                // IN 매개변수 설정
+//                callableStatement.setLong(1, request.getUserId());
+//                callableStatement.setLong(2, request.getBookId());
+//                callableStatement.setLong(3, request.getLibraryId());
+//
+//                // OUT 매개변수 등록
+//                callableStatement.registerOutParameter(4, Types.NUMERIC); // p_loan_id
+//                callableStatement.registerOutParameter(5, Types.VARCHAR); // p_result
+//
+//                // 프로시저 실행
+//                callableStatement.execute();
+//
+//                // 결과 가져오기
+//                Long loanId = callableStatement.getLong(4);
+//                String result = callableStatement.getString(5);
+//
+//                log.info("PL/SQL 프로시저 실행 결과: loanId={}, result={}", loanId, result);
+//
+//                // 결과 분석해서 DTO 반환
+//                if (result.startsWith("SUCCESS")) {
+//                    return LoanResponseDTO.success(loanId, result);
+//                } else {
+//                    return LoanResponseDTO.failure(result);
+//                }
+//
+//            } catch (SQLException e) {
+//                log.error("PL/SQL 프로시저 호출 중 오류 발생", e);
+//                return LoanResponseDTO.failure("시스템 오류: " + e.getMessage());
+//            }
+//        });
+//
+//
+//    }
+//    public boolean checkBookAvailability(Long bookId, Long libraryId) {
+//            String sql = """
+//            SELECT COUNT(*)
+//            FROM BOOKS
+//            WHERE BOOK_ID = ?
+//            AND LIBRARY_ID = ?
+//            AND NVL(AVAILABLE_AMOUNT, 0) > 0
+//            """;
+//
+//            Integer count = jdbcTemplate.queryForObject(sql, Integer.class, bookId, libraryId);
+//            return count != null && count > 0;
+//        }
 
 // =============================================
 
