@@ -28,10 +28,12 @@ CREATE OR REPLACE PACKAGE BODY popular_package AS
                     b.author,
                     b.publisher,
                     b.cover_image,
-                    b.borrow_count
+                    COUNT(l.log_id) as borrow_count
                 FROM books b
-                WHERE b.borrow_count > 0
-                ORDER BY b.borrow_count DESC
+                JOIN loan l ON b.book_id = l.book_id
+                WHERE l.borrow_date >= TRUNC(SYSDATE) - 7  -- 최근 7일
+                GROUP BY b.book_id, b.title, b.author, b.publisher, b.cover_image
+                ORDER BY borrow_count DESC
             )
             WHERE ROWNUM <= 10;
     END get_weekly_popular_books;
@@ -49,10 +51,12 @@ CREATE OR REPLACE PACKAGE BODY popular_package AS
                     b.author,
                     b.publisher,
                     b.cover_image,
-                    b.borrow_count
+                    COUNT(l.log_id) as borrow_count
                 FROM books b
-                WHERE b.borrow_count > 0
-                ORDER BY b.borrow_count DESC
+                JOIN loan l ON b.book_id = l.book_id
+                WHERE l.borrow_date >= TRUNC(SYSDATE) - 30  -- 최근 30일
+                GROUP BY b.book_id, b.title, b.author, b.publisher, b.cover_image
+                ORDER BY borrow_count DESC
             )
             WHERE ROWNUM <= 10;
     END get_monthly_popular_books;
