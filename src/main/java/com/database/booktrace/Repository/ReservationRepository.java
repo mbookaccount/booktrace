@@ -19,7 +19,7 @@ public class ReservationRepository {
 
     public Map<String, Object> reserveBook(Long userId, Long bookId) {
         SimpleJdbcCall jdbcCall = new SimpleJdbcCall(dataSource)
-                .withProcedureName("RESERVE_BOOK")
+                .withProcedureName("loan_package.RESERVE_BOOK")
                 .withoutProcedureColumnMetaDataAccess()
                 .declareParameters(
                         new SqlParameter("p_user_id", Types.NUMERIC),

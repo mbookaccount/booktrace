@@ -163,8 +163,13 @@ public class LoanRepository {
                 response.setId(rs.getLong("id"));
                 response.setUserId(rs.getLong("user_id"));
                 response.setBookId(rs.getLong("book_id"));
-                response.setBorrowDate(rs.getTimestamp("borrow_date").toLocalDateTime());
-                response.setReturnDate(rs.getTimestamp("return_date").toLocalDateTime());
+                //response.setBorrowDate(rs.getTimestamp("borrow_date").toLocalDateTime());
+                //response.setReturnDate(rs.getTimestamp("return_date").toLocalDateTime());
+                Timestamp borrowTs = rs.getTimestamp("borrow_date");
+                response.setBorrowDate(borrowTs != null ? borrowTs.toLocalDateTime() : null);
+
+                Timestamp returnTs = rs.getTimestamp("return_date");
+                response.setReturnDate(returnTs != null ? returnTs.toLocalDateTime() : null);
                 response.setStatus(rs.getString("status"));
                 response.setExtensionCount(rs.getInt("extensionCount"));
                 return response;
