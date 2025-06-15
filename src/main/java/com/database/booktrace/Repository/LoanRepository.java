@@ -110,17 +110,33 @@ public class LoanRepository {
 
     private LoanResponse mapLoanResponse(ResultSet rs) throws SQLException {
         LoanResponse response = new LoanResponse();
+
         response.setNo(rs.getInt("no"));
         response.setLoanId(rs.getLong("loan_id"));
-        response.setLoanDate(rs.getTimestamp("loan_date").toLocalDateTime().toLocalDate());
-        response.setDueDate(rs.getTimestamp("due_date").toLocalDateTime().toLocalDate());
+
+        // loan_date
+        Timestamp loanDate = rs.getTimestamp("loan_date");
+        if (loanDate != null) {
+            response.setLoanDate(loanDate.toLocalDateTime().toLocalDate());
+        }
+
+        // due_date
+        Timestamp dueDate = rs.getTimestamp("due_date");
+        if (dueDate != null) {
+            response.setDueDate(dueDate.toLocalDateTime().toLocalDate());
+        } else {
+            response.setDueDate(null); // 또는 LocalDate.now()
+        }
+
         response.setBookTitle(rs.getString("book_title"));
         response.setLibraryLocation(rs.getString("library_location"));
         response.setStatus(rs.getString("status"));
         response.setIsExtendable(rs.getBoolean("is_extendable"));
         response.setAction(rs.getString("action"));
+
         return response;
-    };
+    }
+
 
     // 사용자의 대출 목록 조회
     public List<LoanResponse> findByUserId(Long userId) {
