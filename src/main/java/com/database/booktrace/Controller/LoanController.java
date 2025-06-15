@@ -25,76 +25,6 @@ public class LoanController {
 
     private final LoanService loanService;
 
-//    /**
-//     * 도서 대출 API (POST - JSON Body 방식)
-//     *
-//     */
-//    @PostMapping("/borrow")
-//    public ResponseEntity<LoanResponseDTO> borrowBook(@RequestBody LoanRequestDTO request) {
-//        log.info("도서 대출 API 호출: userId={}, bookId={}, libraryId={}",
-//                request.getUserId(), request.getBookId(), request.getLibraryId());
-//
-//        try {
-//            // 입력값 검증
-//            if (request.getUserId() == null || request.getBookId() == null || request.getLibraryId() == null) {
-//                LoanResponseDTO errorResponse = LoanResponseDTO.failure("필수 입력값이 누락되었습니다.");
-//                return ResponseEntity.badRequest().body(errorResponse);
-//            }
-//
-//            // 대출 처리
-//            LoanResponseDTO response = loanService.borrowBook(request);
-//
-//            if (response.isSuccess()) {
-//                return ResponseEntity.ok(response);
-//            } else {
-//                return ResponseEntity.badRequest().body(response);
-//            }
-//
-//        } catch (Exception e) {
-//            log.error("도서 대출 처리 중 오류 발생", e);
-//            LoanResponseDTO errorResponse = LoanResponseDTO.failure("서버 오류가 발생했습니다: " + e.getMessage());
-//            return ResponseEntity.internalServerError().body(errorResponse);
-//        }
-//    }
-//
-//    /**
-//     * 도서 대출 API
-//     *
-//     */
-//    @GetMapping("/borrow")
-//    public ResponseEntity<LoanResponseDTO> borrowBookByParams(
-//            @RequestParam Long userId,
-//            @RequestParam Long bookId,
-//            @RequestParam Long libraryId) {
-//
-//        log.info("도서 대출 API (GET) 호출: userId={}, bookId={}, libraryId={}", userId, bookId, libraryId);
-//
-//        // DTO 생성
-//        LoanRequestDTO request = new LoanRequestDTO(userId, bookId, libraryId);
-//
-//        // POST 방식과 동일한 로직 재사용
-//        return borrowBook(request);
-//    }
-//
-//    /**
-//     * 도서 대출 가능 여부 확인 API
-//     */
-//    @GetMapping("/check-availability")
-//    public ResponseEntity<Boolean> checkBookAvailability(
-//            @RequestParam Long bookId,
-//            @RequestParam Long libraryId) {
-//
-//        log.info("도서 대출 가능 여부 확인: bookId={}, libraryId={}", bookId, libraryId);
-//
-//        try {
-//            boolean available = loanService.isBookAvailable(bookId, libraryId);
-//            return ResponseEntity.ok(available);
-//        } catch (Exception e) {
-//            log.error("도서 대출 가능 여부 확인 중 오류", e);
-//            return ResponseEntity.internalServerError().body(false);
-//        }
-//    }
-
     @PostMapping("/book/{bookId}")
     public ResponseEntity<?> advancedBorrowEbook(@PathVariable Long bookId, HttpSession session) {
         Long userId = (Long) session.getAttribute("userId");
@@ -106,7 +36,7 @@ public class LoanController {
         }
 
         try {
-            Map<String, Object> result = loanService.advancedBorrowEbook(userId, bookId);
+            Map<String, Object> result = loanService.BorrowEbook(userId, bookId);
 
             // Oracle NUMBER 타입은 BigDecimal로 반환됨! 안전한 변환 필요
             Object resultObj = result.get("p_result");
@@ -224,6 +154,46 @@ public class LoanController {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
                     .body(error);
+        }
+    }
+
+    @PostMapping("/{loanId}/return")
+    public ResponseEntity<Map<String, Object>> returnBook(@PathVariable Long loanId) {
+        try {
+            log.info("반납 API 호출 - 대출 ID: {}", loanId);
+
+            Map<String, Object> result = loanService.returnBook(loanId);
+
+            Integer resultCode = (Integer) result.get("p_result");
+            String message = (String) result.get("p_message");
+
+            log.info("반납 처리 완료 - 결과: {}, 메시지: {}", resultCode, message);
+
+            if (resultCode != null && resultCode == 1) {
+                // 성공
+                return ResponseEntity.ok(result);
+            } else {
+                // 실패 (비즈니스 로직 오류)
+                log.warn("반납 실패 - 대출 ID: {}, 메시지: {}", loanId, message);
+                return ResponseEntity.badRequest().body(result);
+            }
+
+        } catch (IllegalArgumentException e) {
+            log.error("반납 요청 오류 - 대출 ID: {}, 오류: {}", loanId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of(
+                            "p_result", 0,
+                            "p_message", e.getMessage(),
+                            "error", "INVALID_REQUEST"
+                    ));
+        } catch (Exception e) {
+            log.error("반납 처리 중 시스템 오류 - 대출 ID: {}", loanId, e);
+            return ResponseEntity.status(500)
+                    .body(Map.of(
+                            "p_result", 0,
+                            "p_message", "서버 내부 오류가 발생했습니다.",
+                            "error", "INTERNAL_SERVER_ERROR"
+                    ));
         }
     }
 

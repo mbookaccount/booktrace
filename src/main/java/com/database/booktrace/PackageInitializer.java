@@ -36,6 +36,7 @@ public class PackageInitializer {
             runScript("sql/book_search_package.sql");
             runScript("sql/user_auth_package.sql");
             runScript("sql/recommendation_package.sql");
+            runScript("sql/return_package.sql");
             // 초기 데이터 삽입 추가
             // runScript("sql/initial_data_insert.sql");
             System.out.println(" 모든 패키지 초기화가 완료되었습니다.");

@@ -1,7 +1,5 @@
 package com.database.booktrace.Service;
 
-
-
 import com.database.booktrace.Dto.Request.LoanRequestDTO;
 
 import com.database.booktrace.Dto.Response.CancelResvResponse;
@@ -24,34 +22,7 @@ import java.util.Map;
 public class LoanService {
 
     private final LoanRepository loanRepository;
-//
-////
-////     //도서 대출 - PL/SQL 프로시저 사용
-////    @Transactional
-////    public LoanResponseDTO borrowBook(LoanRequestDTO request) {
-////        log.info("도서 대출 요청: userId={}, bookId={}, libraryId={}",
-////                request.getUserId(), request.getBookId(), request.getLibraryId());
-////
-////        // 입력값 검증
-////        if (request.getUserId() == null || request.getBookId() == null || request.getLibraryId() == null) {
-////            return LoanResponseDTO.failure("필수 입력값이 누락되었습니다.");
-////        }
-////
-////        // PL/SQL 프로시저 호출
-////        LoanResponseDTO response = loanRepository.borrowBookUsingProcedure(request);
-////
-////        log.info("대출 처리 완료: success={}, message={}", response.isSuccess(), response.getMessage());
-////
-////        return response;
-////    }
-////
-////    //도서 대출 가능 여부 확인
-////
-////    public boolean isBookAvailable(Long bookId, Long libraryId) {
-////        return loanRepository.checkBookAvailability(bookId, libraryId);
-////    }
-//
-//
+
     @Transactional(readOnly = true)
     public List<LoanResponse> getLoansByUserId(Long userId) {
         if (userId == null) {
@@ -61,10 +32,24 @@ public class LoanService {
         return loanRepository.findByUserId(userId);
     }
 
-    public Map<String, Object> advancedBorrowEbook(Long userId, Long bookId) {
+    public Map<String, Object> BorrowEbook(Long userId, Long bookId) {
     log.info("대출 요청 - 사용자: {}, 도서: {}", userId, bookId);
-    return loanRepository.advancedBorrowEbook(userId, bookId);
-}
+    return loanRepository.BorrowEbook(userId, bookId);
+    }
+
+
+    //도서 반납
+    @Transactional
+    public Map<String,Object> returnBook(Long loanId){
+        log.info("반납 요청 : 대출id {}",loanId);
+
+        if(loanId==null){
+            throw new IllegalArgumentException("대출 ID는 null일 수 없습니다.");
+        }
+        return loanRepository.returnBook(loanId);
+    }
+
+
     public CancelResvResponse cancelResv(Long resvId){
         return loanRepository.cancelReservation(resvId);
     }
