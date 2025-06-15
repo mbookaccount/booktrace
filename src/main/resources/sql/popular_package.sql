@@ -21,36 +21,40 @@ CREATE OR REPLACE PACKAGE BODY popular_package AS
     ) IS
     BEGIN
         OPEN p_books FOR
-            SELECT 
-                b.book_id, 
-                b.title, 
-                b.author, 
-                b.publisher,
-                b.cover_image,
-                b.borrow_count
-            FROM books b
-            WHERE b.borrow_count > 0
-            ORDER BY b.borrow_count DESC
-            FETCH FIRST 10 ROWS ONLY;
+            SELECT * FROM (
+                SELECT
+                    b.book_id,
+                    b.title,
+                    b.author,
+                    b.publisher,
+                    b.cover_image,
+                    b.borrow_count
+                FROM books b
+                WHERE b.borrow_count > 0
+                ORDER BY b.borrow_count DESC
+            )
+            WHERE ROWNUM <= 10;
     END get_weekly_popular_books;
-    
+
     -- 월간 인기 도서 조회
     PROCEDURE get_monthly_popular_books(
         p_books OUT popular_book_cursor
     ) IS
     BEGIN
         OPEN p_books FOR
-            SELECT 
-                b.book_id, 
-                b.title, 
-                b.author, 
-                b.publisher,
-                b.cover_image,
-                b.borrow_count
-            FROM books b
-            WHERE b.borrow_count > 0
-            ORDER BY b.borrow_count DESC
-            FETCH FIRST 10 ROWS ONLY;
+            SELECT * FROM (
+                SELECT
+                    b.book_id,
+                    b.title,
+                    b.author,
+                    b.publisher,
+                    b.cover_image,
+                    b.borrow_count
+                FROM books b
+                WHERE b.borrow_count > 0
+                ORDER BY b.borrow_count DESC
+            )
+            WHERE ROWNUM <= 10;
     END get_monthly_popular_books;
 END popular_package;
-/ 
+/

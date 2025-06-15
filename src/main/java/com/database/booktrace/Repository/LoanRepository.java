@@ -12,12 +12,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.dialect.OracleTypes;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlOutParameter;
+import org.springframework.jdbc.core.SqlParameter;
+import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Repository
 @RequiredArgsConstructor
@@ -30,58 +35,76 @@ public class LoanRepository {
 
     public final JdbcTemplate jdbcTemplate;
     private final DataSource dataSource;
+    public Map<String, Object> advancedBorrowEbook(Long userId, Long bookId) {
+        SimpleJdbcCall jdbcCall = new SimpleJdbcCall(dataSource)
+                .withProcedureName("loan_package.BORROW_BOOK")
+                .withoutProcedureColumnMetaDataAccess()
+                .declareParameters(
+                        new SqlParameter("p_user_id", Types.NUMERIC),
+                        new SqlParameter("p_book_id", Types.NUMERIC),
+                        new SqlOutParameter("p_result", Types.INTEGER),
+                        new SqlOutParameter("p_message", Types.VARCHAR),
+                        new SqlOutParameter("p_loan_id", Types.NUMERIC)
+                );
 
-    public LoanResponseDTO borrowBookUsingProcedure(LoanRequestDTO request) {
-        return jdbcTemplate.execute((Connection connection) -> {
-            // Callable Statement 생성
-            String sql = "{call BORROW_BOOK(?, ?, ?, ?, ?)}";
+        Map<String, Object> inParams = new HashMap<>();
+        inParams.put("p_user_id", userId);
+        inParams.put("p_book_id", bookId);
 
-            try (CallableStatement callableStatement = connection.prepareCall(sql)) {
-                // IN 매개변수 설정
-                callableStatement.setLong(1, request.getUserId());
-                callableStatement.setLong(2, request.getBookId());
-                callableStatement.setLong(3, request.getLibraryId());
-
-                // OUT 매개변수 등록
-                callableStatement.registerOutParameter(4, Types.NUMERIC); // p_loan_id
-                callableStatement.registerOutParameter(5, Types.VARCHAR); // p_result
-
-                // 프로시저 실행
-                callableStatement.execute();
-
-                // 결과 가져오기
-                Long loanId = callableStatement.getLong(4);
-                String result = callableStatement.getString(5);
-
-                log.info("PL/SQL 프로시저 실행 결과: loanId={}, result={}", loanId, result);
-
-                // 결과 분석해서 DTO 반환
-                if (result.startsWith("SUCCESS")) {
-                    return LoanResponseDTO.success(loanId, result);
-                } else {
-                    return LoanResponseDTO.failure(result);
-                }
-
-            } catch (SQLException e) {
-                log.error("PL/SQL 프로시저 호출 중 오류 발생", e);
-                return LoanResponseDTO.failure("시스템 오류: " + e.getMessage());
-            }
-        });
-
-
+        return jdbcCall.execute(inParams);
     }
-    public boolean checkBookAvailability(Long bookId, Long libraryId) {
-            String sql = """
-            SELECT COUNT(*)
-            FROM BOOKS
-            WHERE BOOK_ID = ?
-            AND LIBRARY_ID = ?
-            AND NVL(AVAILABLE_AMOUNT, 0) > 0
-            """;
-
-            Integer count = jdbcTemplate.queryForObject(sql, Integer.class, bookId, libraryId);
-            return count != null && count > 0;
-        }
+//
+//    public LoanResponseDTO borrowBookUsingProcedure(LoanRequestDTO request) {
+//        return jdbcTemplate.execute((Connection connection) -> {
+//            // Callable Statement 생성
+//            String sql = "{call BORROW_BOOK(?, ?, ?, ?, ?)}";
+//
+//            try (CallableStatement callableStatement = connection.prepareCall(sql)) {
+//                // IN 매개변수 설정
+//                callableStatement.setLong(1, request.getUserId());
+//                callableStatement.setLong(2, request.getBookId());
+//                callableStatement.setLong(3, request.getLibraryId());
+//
+//                // OUT 매개변수 등록
+//                callableStatement.registerOutParameter(4, Types.NUMERIC); // p_loan_id
+//                callableStatement.registerOutParameter(5, Types.VARCHAR); // p_result
+//
+//                // 프로시저 실행
+//                callableStatement.execute();
+//
+//                // 결과 가져오기
+//                Long loanId = callableStatement.getLong(4);
+//                String result = callableStatement.getString(5);
+//
+//                log.info("PL/SQL 프로시저 실행 결과: loanId={}, result={}", loanId, result);
+//
+//                // 결과 분석해서 DTO 반환
+//                if (result.startsWith("SUCCESS")) {
+//                    return LoanResponseDTO.success(loanId, result);
+//                } else {
+//                    return LoanResponseDTO.failure(result);
+//                }
+//
+//            } catch (SQLException e) {
+//                log.error("PL/SQL 프로시저 호출 중 오류 발생", e);
+//                return LoanResponseDTO.failure("시스템 오류: " + e.getMessage());
+//            }
+//        });
+//
+//
+//    }
+//    public boolean checkBookAvailability(Long bookId, Long libraryId) {
+//            String sql = """
+//            SELECT COUNT(*)
+//            FROM BOOKS
+//            WHERE BOOK_ID = ?
+//            AND LIBRARY_ID = ?
+//            AND NVL(AVAILABLE_AMOUNT, 0) > 0
+//            """;
+//
+//            Integer count = jdbcTemplate.queryForObject(sql, Integer.class, bookId, libraryId);
+//            return count != null && count > 0;
+//        }
 
 // =============================================
 
@@ -140,8 +163,13 @@ public class LoanRepository {
                 response.setId(rs.getLong("id"));
                 response.setUserId(rs.getLong("user_id"));
                 response.setBookId(rs.getLong("book_id"));
-                response.setBorrowDate(rs.getTimestamp("borrow_date").toLocalDateTime());
-                response.setReturnDate(rs.getTimestamp("return_date").toLocalDateTime());
+                //response.setBorrowDate(rs.getTimestamp("borrow_date").toLocalDateTime());
+                //response.setReturnDate(rs.getTimestamp("return_date").toLocalDateTime());
+                Timestamp borrowTs = rs.getTimestamp("borrow_date");
+                response.setBorrowDate(borrowTs != null ? borrowTs.toLocalDateTime() : null);
+
+                Timestamp returnTs = rs.getTimestamp("return_date");
+                response.setReturnDate(returnTs != null ? returnTs.toLocalDateTime() : null);
                 response.setStatus(rs.getString("status"));
                 response.setExtensionCount(rs.getInt("extensionCount"));
                 return response;
@@ -155,33 +183,110 @@ public class LoanRepository {
         }
     }
 
-    // 예약 취소
+
+
+    // Repository
     public CancelResvResponse cancelReservation(Long reservationId) {
+        System.out.println("=== 예약 취소 시도 ===");
+        System.out.println("전달받은 reservationId: " + reservationId);
+
         try (Connection conn = dataSource.getConnection();
              CallableStatement cs = conn.prepareCall(
-                     "{ call loan_package.cancel_reservation(?) }"
+                     "{ call loan_package.cancel_reservation(?, ?) }"
              )) {
 
             cs.setLong(1, reservationId);
-            cs.execute();
+            cs.registerOutParameter(2, OracleTypes.CURSOR);
 
-            ResultSet rs = (ResultSet) cs.getObject(2);
-            if (rs.next()) {
-                CancelResvResponse response = new CancelResvResponse();
-                response.setId(rs.getLong("id"));
-                response.setUserId(rs.getLong("user_id"));
-                response.setBookId(rs.getLong("book_id"));
-                response.setResvDate(rs.getTimestamp("resv_date").toLocalDateTime());
-                response.setStatus(rs.getString("status"));
-                return response;
+            System.out.println("PL/SQL 호출 전...");
+            cs.execute();
+            System.out.println("PL/SQL 호출 성공!");
+//            cs.registerOutParameter(2, OracleTypes.CURSOR);
+//            cs.execute();
+
+            try (ResultSet rs = (ResultSet) cs.getObject(2)) { // try-with-resources로 수정
+                System.out.println("ResultSet 가져오기 성공");
+
+                // ResultSet 메타데이터 확인
+                ResultSetMetaData metaData = rs.getMetaData();
+                System.out.println("컬럼 개수: " + metaData.getColumnCount());
+                for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                    System.out.println("컬럼 " + i + ": " + metaData.getColumnName(i) + " (" + metaData.getColumnTypeName(i) + ")");
+                }
+
+                if (rs.next()) {
+                    System.out.println("ResultSet에 데이터 존재");
+                    CancelResvResponse response = new CancelResvResponse();
+
+                    try {
+                        response.setId(rs.getLong("ID"));
+                        System.out.println("ID 설정 완료");
+                    } catch (Exception e) {
+                        System.out.println("ID 설정 실패: " + e.getMessage());
+                        throw e;
+                    }
+
+                    try {
+                        response.setUserId(rs.getLong("USER_ID"));
+                        System.out.println("USER_ID 설정 완료");
+                    } catch (Exception e) {
+                        System.out.println("USER_ID 설정 실패: " + e.getMessage());
+                        throw e;
+                    }
+
+                    try {
+                        response.setBookId(rs.getLong("BOOK_ID"));
+                        System.out.println("BOOK_ID 설정 완료");
+                    } catch (Exception e) {
+                        System.out.println("BOOK_ID 설정 실패: " + e.getMessage());
+                        throw e;
+                    }
+
+                    try {
+                        response.setResvDate(rs.getTimestamp("RESV_DATE").toLocalDateTime());
+                        System.out.println("RESV_DATE 설정 완료");
+                    } catch (Exception e) {
+                        System.out.println("RESV_DATE 설정 실패: " + e.getMessage());
+                        throw e;
+                    }
+
+                    try {
+                        response.setStatus(rs.getString("STATUS"));
+                        System.out.println("STATUS 설정 완료");
+                    } catch (Exception e) {
+                        System.out.println("STATUS 설정 실패: " + e.getMessage());
+                        throw e;
+                    }
+
+                    System.out.println("응답 객체 생성 완료: " + response);
+                    return response;
+                } else {
+                    System.out.println("ResultSet이 비어있음!");
+                }
             }
 
             throw new IllegalArgumentException("예약 취소가 불가능합니다.");
         } catch (SQLException e) {
-            handleSQLException(e, "예약 취소 중 오류가 발생했습니다.");
-            return null;
+            System.out.println("=== SQLException 발생 ===");
+            System.out.println("Error Code: " + e.getErrorCode());
+            System.out.println("SQL State: " + e.getSQLState());
+            System.out.println("Message: " + e.getMessage());
+
+            String errorMessage = e.getMessage();
+
+            // Oracle 사용자 정의 예외 처리
+            if (errorMessage.contains("ORA-20001")) {
+                throw new IllegalArgumentException("존재하지 않는 예약입니다.");
+            } else if (errorMessage.contains("ORA-20004")) {
+                throw new IllegalArgumentException("해당 예약을 찾을 수 없습니다. (not_found_exception)");
+            } else if (errorMessage.contains("ORA-01403") || errorMessage.contains("no data found")) {
+                throw new IllegalArgumentException("해당 예약을 찾을 수 없습니다.");
+            } else {
+                throw new RuntimeException("예약 취소 중 오류가 발생했습니다: " + errorMessage, e);
+            }
         }
     }
+
 
     // 도서 예약 여부 확인
     public boolean hasReservation(Long bookId) {
