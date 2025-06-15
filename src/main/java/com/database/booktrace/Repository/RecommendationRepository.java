@@ -1,5 +1,6 @@
 package com.database.booktrace.Repository;
 
+import com.database.booktrace.Domain.BookCategory;
 import com.database.booktrace.Dto.Response.RecommendedBookDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,13 +39,8 @@ public class RecommendationRepository {
                     RecommendedBookDTO book = new RecommendedBookDTO();
                     book.setBookId(rs.getLong("book_id"));
                     book.setTitle(rs.getString("title"));
-                    book.setAuthor(rs.getString("author"));
-                    book.setPublisher(rs.getString("publisher"));
+                    book.setCategory(BookCategory.valueOf(rs.getString("category")));
                     book.setCoverImage(rs.getString("cover_image"));
-                    book.setDescription(rs.getString("description"));
-                    book.setAvailableAmount(rs.getInt("available_amount"));
-                    book.setIsAvailable(rs.getInt("is_available") == 1);
-
                     recommendedBooks.add(book);
                 }
             }

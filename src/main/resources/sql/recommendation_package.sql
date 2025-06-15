@@ -21,11 +21,8 @@ CREATE OR REPLACE PACKAGE BODY recommendation_pkg AS
                 SELECT
                     b.book_id,
                     b.title,
-                    b.author,
-                    b.publisher,
                     b.category,
                     b.cover_image,
-                    b.available_amount,
                     CASE WHEN b.available_amount > 0 THEN 1 ELSE 0 END as is_available,
                     (SELECT COUNT(*) FROM reservations r WHERE r.book_id = b.book_id) as reservation_count
                 FROM books b
