@@ -148,7 +148,8 @@ public class UserController {
         responseBody.put("success", true);
         responseBody.put("message", "로그아웃이 완료되었습니다.");
         responseBody.put("error", "LogoutSuccess");
-        responseBody.put("requireRefresh", true);  // 프론트엔드에서 페이지 새로고침 필요
+        responseBody.put("requireRefresh", true);
+        responseBody.put("redirectUrl", "/");  // 홈으로 리다이렉트
         
         return ResponseEntity.ok(responseBody);
     }
