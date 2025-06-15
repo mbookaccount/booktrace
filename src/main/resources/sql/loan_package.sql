@@ -627,6 +627,8 @@ END cancel_reservation;
             RAISE_APPLICATION_ERROR(-20002, '연체된 대출은 연장할 수 없습니다.');
         WHEN loan_exceptions.already_reserved_exception THEN
             RAISE_APPLICATION_ERROR(-20003, '이미 예약된 도서입니다.');
+        WHEN OTHERS THEN
+            RAISE_APPLICATION_ERROR(-20000, '대출 정보 저장 중 오류가 발생했습니다: ' || SQLERRM);
     END save_loan;
 
     -- 대출 정보 삭제
@@ -722,42 +724,39 @@ END cancel_reservation;
             
         v_result NUMBER;
         v_message VARCHAR2(200);
+        v_error_count NUMBER := 0;
     BEGIN
         FOR loan_rec IN c_overdue_loans LOOP
-            -- 각 연체 도서에 대해 반납 처리
-            RETURN_BOOK(
-                p_loan_id => loan_rec.loan_id,
-                p_result => v_result,
-                p_message => v_message
-            );
-            
-            -- 로그 기록
-            INSERT INTO system_logs (
-                log_type,
-                message,
-                created_at
-            ) VALUES (
-                'AUTO_RETURN',
-                '도서 ID: ' || loan_rec.book_id || ' 자동 반납 처리 - ' || v_message,
-                SYSTIMESTAMP
-            );
+            BEGIN
+                -- 각 연체 도서에 대해 반납 처리
+                RETURN_BOOK(
+                    p_loan_id => loan_rec.loan_id,
+                    p_result => v_result,
+                    p_message => v_message
+                );
+                
+                -- 성공 시 커밋
+                COMMIT;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    -- 개별 도서 반납 실패 시 롤백하고 계속 진행
+                    ROLLBACK;
+                    v_error_count := v_error_count + 1;
+                    -- 실패 정보 출력
+                    DBMS_OUTPUT.PUT_LINE('도서 ID: ' || loan_rec.book_id || ' 자동 반납 실패 - ' || SQLERRM);
+            END;
         END LOOP;
         
-        COMMIT;
+        -- 전체 처리 결과 출력
+        IF v_error_count > 0 THEN
+            DBMS_OUTPUT.PUT_LINE('총 ' || v_error_count || '건의 도서 반납 처리 중 오류가 발생했습니다.');
+        END IF;
+        
     EXCEPTION
         WHEN OTHERS THEN
             ROLLBACK;
-            -- 오류 로그 기록
-            INSERT INTO system_logs (
-                log_type,
-                message,
-                created_at
-            ) VALUES (
-                'AUTO_RETURN_ERROR',
-                '자동 반납 처리 중 오류 발생: ' || SQLERRM,
-                SYSTIMESTAMP
-            );
-            COMMIT;
+            DBMS_OUTPUT.PUT_LINE('자동 반납 처리 중 오류 발생: ' || SQLERRM);
+            RAISE;
     END AUTO_RETURN_OVERDUE_BOOKS;
 
 END loan_package;  -- 여기서 패키지 바디 전체가 끝남!
@@ -782,11 +781,11 @@ BEGIN
         p_book_id => :NEW.book_id,
         p_borrow_date => :NEW.borrow_date,
         p_return_date => :NEW.return_date,
-        p_mileage => CASE 
+        p_mileage => CASE
             WHEN :NEW.status = 'RETURNED' THEN 3  -- 반납된 경우 3점
             ELSE 0  -- 대출 중인 경우 0점
         END,
-        p_total_mileage => CASE 
+        p_total_mileage => CASE
             WHEN :NEW.status = 'RETURNED' THEN v_total_mileage + 3  -- 반납된 경우 마일리지 추가
             ELSE v_total_mileage  -- 대출 중인 경우 현재 마일리지
         END

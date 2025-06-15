@@ -180,8 +180,10 @@ public class LoanController {
 
         try {
             List<LoanResponse> loans = loanService.getLoansByUserId(userId);
+            log.info("loans : " + loans.toString());
             return ResponseEntity.ok(loans);
         } catch (IllegalArgumentException e) {
+            log.info("loans error : " + e.getMessage());
             ErrorResponse error = new ErrorResponse(
                     false,
                     "다시 시도해주세요.",

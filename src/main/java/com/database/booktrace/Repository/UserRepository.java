@@ -203,7 +203,7 @@ public class UserRepository  {
         }
     }
 
-    public void updateUserInterests(Long userId, Set<String> interests) {
+    public void updateUserInterests(Long userId, Set<BookCategory> interests) {
         String sql = "UPDATE users SET interests = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?";
 
         try (Connection conn = dataSource.getConnection();

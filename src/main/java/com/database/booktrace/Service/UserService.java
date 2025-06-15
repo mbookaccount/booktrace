@@ -6,6 +6,8 @@ import com.database.booktrace.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.Set;
+import java.util.stream.Collectors;
+import com.database.booktrace.Domain.BookCategory;
 
 @Service
 public class UserService {
@@ -37,6 +39,9 @@ public class UserService {
     }
 
     public void updateInterests(Long userId, Set<String> interests) {
-        userRepository.updateUserInterests(userId, interests);
+        Set<BookCategory> categories = interests.stream()
+                .map(BookCategory::valueOf)
+                .collect(Collectors.toSet());
+        userRepository.updateUserInterests(userId, categories);
     }
 }

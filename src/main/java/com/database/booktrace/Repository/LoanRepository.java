@@ -157,6 +157,7 @@ public class LoanRepository {
             return loans;
 
         } catch (SQLException e) {
+            log.info("loan repository info : " + e.getMessage());
             handleSQLException(e, "사용자의 대출 목록을 조회하는 중 오류가 발생했습니다.");
             return new ArrayList<>();
         }

@@ -6,11 +6,13 @@ import com.database.booktrace.Dto.Response.ErrorResponse;
 import com.database.booktrace.Dto.Response.UserDTO;
 import com.database.booktrace.Service.UserService;
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
@@ -49,6 +51,9 @@ public class UserController {
             }
 
             // 성공 응답 (200 OK)
+            log.info("userName : "+ userDTO.getUserName());
+            log.info("LoginId : "+ userDTO.getLoginId());
+            log.info("getInterests : "+ userDTO.getInterests());
             return ResponseEntity.ok(userDTO);
 
         } catch (IllegalArgumentException e) {
