@@ -52,7 +52,7 @@ public class SignupController {
     }
 
 
-    @GetMapping("/check-login-id")
+    @PostMapping("/check-login-id")
     public ResponseEntity<CheckLoginIdResponse> checkLoginId(
             @Valid @RequestBody CheckLoginIdRequest request) {
 

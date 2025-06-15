@@ -240,7 +240,7 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
             RETURN '오류 발생: ' || SQLERRM;
     END CHECK_USER_LOAN_IS_AVAILABLE;
 
-    -- 도서 대출
+    -- 도서 대출 (중복 대출 체크 추가)
     PROCEDURE BORROW_BOOK (
         p_user_id   IN  NUMBER,
         p_book_id   IN  NUMBER,
@@ -255,6 +255,7 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
         v_loan_id LOANS.LOAN_ID%TYPE;
         v_amount  BOOKS.AVAILABLE_AMOUNT%TYPE;
         v_return_date TIMESTAMP;
+        v_duplicate_count NUMBER := 0;  -- 중복 대출 체크용
 
         -- 레코드 타입
         book_rec BOOKS%ROWTYPE;
@@ -266,6 +267,7 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
         -- 예외 정의
         BOOK_NOT_AVAILABLE EXCEPTION;
         USER_NOT_ELIGIBLE   EXCEPTION;
+        DUPLICATE_LOAN     EXCEPTION;  -- 중복 대출 예외 추가
 
     BEGIN
         -- NULL 체크
@@ -274,6 +276,17 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
             p_message := '사용자 ID와 도서 ID는 필수입니다.';
             p_loan_id := NULL;
             RETURN;
+        END IF;
+
+        -- ★★★ 중복 대출 체크 추가 ★★★
+        SELECT COUNT(*) INTO v_duplicate_count
+        FROM LOANS
+        WHERE USER_ID = v_user_id
+          AND BOOK_ID = v_book_id
+          AND STATUS IN ('BORROWED', 'OVERDUE');  -- 대출중이거나 연체인 경우
+
+        IF v_duplicate_count > 0 THEN
+            RAISE DUPLICATE_LOAN;
         END IF;
 
         -- 사용자 대출 가능 여부 확인 함수 호출
@@ -324,6 +337,11 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
         p_loan_id := v_loan_id;
 
     EXCEPTION
+        WHEN DUPLICATE_LOAN THEN
+            ROLLBACK;
+            p_result := 0;
+            p_message := '이미 대출 중인 도서입니다.';
+            p_loan_id := NULL;
         WHEN BOOK_NOT_AVAILABLE THEN
             ROLLBACK;
             p_result := 0;

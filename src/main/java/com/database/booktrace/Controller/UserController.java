@@ -21,12 +21,12 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<?> getMyInfo(HttpSession session) {
         // 세션 체크 (401 Unauthorized)
-        String username = (String) session.getAttribute("username");
-        if (username == null) {
+        Long userId = (Long) session.getAttribute("userId");
+        if (userId == null) {
             ErrorResponse error = new ErrorResponse(
-                false,
-                "로그인이 필요합니다.",
-                "Unauthorized"
+                    false,
+                    "로그인이 필요합니다.",
+                    "Unauthorized"
             );
             return ResponseEntity
                     .status(401)
@@ -34,14 +34,14 @@ public class UserController {
         }
 
         try {
-            UserDTO userDTO = userService.getUserInfo(username);
-            
+            UserDTO userDTO = userService.getUserInfo(userId);
+
             // 사용자 존재 여부 체크 (404 Not Found)
             if (userDTO == null) {
                 ErrorResponse error = new ErrorResponse(
-                    false,
-                    "사용자 정보를 찾을 수 없습니다.",
-                    "UserNotFound"
+                        false,
+                        "사용자 정보를 찾을 수 없습니다.",
+                        "UserNotFound"
                 );
                 return ResponseEntity
                         .status(404)
@@ -50,12 +50,12 @@ public class UserController {
 
             // 성공 응답 (200 OK)
             return ResponseEntity.ok(userDTO);
-            
+
         } catch (IllegalArgumentException e) {
             ErrorResponse error = new ErrorResponse(
-                false,
-                "다시 시도해주세요.",
-                e.getMessage()
+                    false,
+                    "다시 시도해주세요.",
+                    e.getMessage()
             );
             return ResponseEntity
                     .status(400)
@@ -88,4 +88,4 @@ public class UserController {
         return ResponseEntity.ok("관심 키워드가 저장되었습니다.");
     }
 
-} 
+}
