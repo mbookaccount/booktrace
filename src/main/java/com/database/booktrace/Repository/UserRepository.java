@@ -189,62 +189,67 @@ public class UserRepository  {
     }
 
     public void updateUserMileage(Long userId, int mileage) {
-        SimpleJdbcCall jdbcCall = new SimpleJdbcCall(jdbcTemplate)
-                .withProcedureName("UPDATE_USER_MILEAGE")
-                .withoutProcedureColumnMetaDataAccess()
-                .declareParameters(
-                        new SqlParameter("p_user_id", Types.NUMERIC),
-                        new SqlParameter("p_mileage", Types.NUMERIC)
-                );
+        String sql = "UPDATE users SET mileage = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?";
 
-        Map<String, Object> inParams = new HashMap<>();
-        inParams.put("p_user_id", userId);
-        inParams.put("p_mileage", mileage);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-        jdbcCall.execute(inParams);
+            pstmt.setInt(1, mileage);
+            pstmt.setLong(2, userId);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error updating user mileage", e);
+        }
     }
 
     public void updateUserInterests(Long userId, Set<String> interests) {
-        SimpleJdbcCall jdbcCall = new SimpleJdbcCall(jdbcTemplate)
-                .withProcedureName("UPDATE_USER_INTERESTS")
-                .withoutProcedureColumnMetaDataAccess()
-                .declareParameters(
-                        new SqlParameter("p_user_id", Types.NUMERIC),
-                        new SqlParameter("p_interests", Types.VARCHAR)
-                );
+        String sql = "UPDATE users SET interests = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?";
 
-        Map<String, Object> inParams = new HashMap<>();
-        inParams.put("p_user_id", userId);
-        
-        try {
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
             String interestsJson = objectMapper.writeValueAsString(interests);
-            inParams.put("p_interests", interestsJson);
-        } catch (JsonProcessingException e) {
-            log.error("Error converting interests to JSON: {}", e.getMessage());
-            inParams.put("p_interests", null);
-        }
+            pstmt.setString(1, interestsJson);
+            pstmt.setLong(2, userId);
+            pstmt.executeUpdate();
 
-        jdbcCall.execute(inParams);
+        } catch (SQLException | JsonProcessingException e) {
+            throw new RuntimeException("Error updating user interests", e);
+        }
     }
 
     public boolean updateUserPassword(Long userId, String currentPasswordPlain, String newPasswordPlain) {
-        SimpleJdbcCall jdbcCall = new SimpleJdbcCall(jdbcTemplate)
-                .withProcedureName("UPDATE_USER_PASSWORD")
-                .withoutProcedureColumnMetaDataAccess()
-                .declareParameters(
-                        new SqlParameter("p_user_id", Types.NUMERIC),
-                        new SqlParameter("p_current_password", Types.VARCHAR),
-                        new SqlParameter("p_new_password", Types.VARCHAR),
-                        new SqlOutParameter("p_result", Types.NUMERIC)
-                );
+        String selectSql = "SELECT password FROM users WHERE user_id = ? AND is_active = 1";
+        String updateSql = "UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?";
 
-        Map<String, Object> inParams = new HashMap<>();
-        inParams.put("p_user_id", userId);
-        inParams.put("p_current_password", currentPasswordPlain);
-        inParams.put("p_new_password", newPasswordPlain);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement selectStmt = conn.prepareStatement(selectSql)) {
 
-        Map<String, Object> out = jdbcCall.execute(inParams);
-        return ((Number) out.get("p_result")).intValue() == 1;
+            selectStmt.setLong(1, userId);
+            ResultSet rs = selectStmt.executeQuery();
+
+            if (rs.next()) {
+                String storedPassword = rs.getString("password");
+
+                if (!storedPassword.equals(currentPasswordPlain)) {
+                    return false; // 현재 비밀번호가 일치하지 않음
+                }
+
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                    updateStmt.setString(1, newPasswordPlain); // 평문 그대로 저장
+                    updateStmt.setLong(2, userId);
+                    updateStmt.executeUpdate();
+                }
+
+                return true;
+            } else {
+                return false;
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error updating user password", e);
+        }
     }
 
     public Optional<User> findByUserId(Long userId) {
