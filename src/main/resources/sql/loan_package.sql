@@ -41,6 +41,13 @@ CREATE OR REPLACE PACKAGE loan_package AS
         p_loan_id OUT NUMBER
     );
 
+    -- 도서 반납
+    PROCEDURE RETURN_BOOK (
+        p_loan_id IN loans.loan_id%TYPE,
+        p_result OUT NUMBER,
+        p_message OUT VARCHAR2
+    );
+
     FUNCTION CHECK_USER_LOAN_IS_AVAILABLE(p_user_id NUMBER)
     RETURN VARCHAR2;
 
@@ -106,6 +113,9 @@ CREATE OR REPLACE PACKAGE loan_package AS
     PROCEDURE delete_loan(
         p_loan_id IN loans.loan_id%TYPE
     );
+
+    -- 자동 반납 처리
+    PROCEDURE AUTO_RETURN_OVERDUE_BOOKS;
 END loan_package;
 /
 
@@ -145,7 +155,8 @@ CREATE OR REPLACE PACKAGE BODY loan_package AS
             FROM loans l
             JOIN books b ON l.book_id = b.book_id
             JOIN libraries lib ON b.library_id = lib.library_id
-            WHERE l.user_id = p_user_id;
+            WHERE l.user_id = p_user_id
+            AND l.status IN ('BORROWED', 'OVERDUE', 'RESERVED');
     END get_user_loans;
 
     -- 대출 연장 가능 여부 확인
@@ -630,5 +641,163 @@ END cancel_reservation;
         END IF;
     END delete_loan;
 
+    -- 도서 반납
+    PROCEDURE RETURN_BOOK (
+        p_loan_id IN loans.loan_id%TYPE,
+        p_result OUT NUMBER,
+        p_message OUT VARCHAR2
+    ) IS
+        v_loan loans%ROWTYPE;
+        v_mileage NUMBER := 3; 
+        v_total_mileage NUMBER;
+        v_log_id reading_log.log_id%TYPE;
+    BEGIN
+        -- 대출 정보 조회
+        SELECT * INTO v_loan
+        FROM loans
+        WHERE loan_id = p_loan_id;
+
+        IF v_loan.status = 'RETURNED' THEN
+            p_result := 0;
+            p_message := '이미 반납된 도서입니다.';
+            RETURN;
+        END IF;
+        
+        -- 사용자의 총 마일리지 조회
+        SELECT mileage INTO v_total_mileage
+        FROM users
+        WHERE user_id = v_loan.user_id;
+
+        -- reading_log에 저장
+        v_log_id := reading_log_package.save_reading_log(
+            p_user_id => v_loan.user_id,
+            p_book_id => v_loan.book_id,
+            p_borrow_date => v_loan.borrow_date,
+            p_return_date => SYSTIMESTAMP,
+            p_mileage => v_mileage,
+            p_total_mileage => v_total_mileage + v_mileage
+        );
+
+        -- 사용자 마일리지 업데이트
+        UPDATE users
+        SET mileage = mileage + v_mileage,
+            updated_at = SYSTIMESTAMP
+        WHERE user_id = v_loan.user_id;
+
+        -- 대출 상태 업데이트
+        UPDATE loans
+        SET status = 'RETURNED',
+            updated_at = SYSTIMESTAMP
+        WHERE loan_id = p_loan_id;
+
+        -- 도서 수량 증가
+        UPDATE books
+        SET available_amount = available_amount + 1,
+            updated_at = SYSTIMESTAMP
+        WHERE book_id = v_loan.book_id;
+
+        COMMIT;
+
+        p_result := 1;
+        p_message := '반납이 완료되었습니다. 마일리지 3점이 적립되었습니다.';
+
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            ROLLBACK;
+            p_result := 0;
+            p_message := '대출 정보를 찾을 수 없습니다.';
+        WHEN OTHERS THEN
+            ROLLBACK;
+            p_result := 0;
+            p_message := '반납 중 오류 발생: ' || SQLERRM;
+    END RETURN_BOOK;
+
+    -- 자동 반납 처리
+    PROCEDURE AUTO_RETURN_OVERDUE_BOOKS IS
+        CURSOR c_overdue_loans IS
+            SELECT l.*
+            FROM loans l
+            WHERE l.status = 'BORROWED'
+            AND l.return_date < SYSTIMESTAMP;
+            
+        v_result NUMBER;
+        v_message VARCHAR2(200);
+    BEGIN
+        FOR loan_rec IN c_overdue_loans LOOP
+            -- 각 연체 도서에 대해 반납 처리
+            RETURN_BOOK(
+                p_loan_id => loan_rec.loan_id,
+                p_result => v_result,
+                p_message => v_message
+            );
+            
+            -- 로그 기록
+            INSERT INTO system_logs (
+                log_type,
+                message,
+                created_at
+            ) VALUES (
+                'AUTO_RETURN',
+                '도서 ID: ' || loan_rec.book_id || ' 자동 반납 처리 - ' || v_message,
+                SYSTIMESTAMP
+            );
+        END LOOP;
+        
+        COMMIT;
+    EXCEPTION
+        WHEN OTHERS THEN
+            ROLLBACK;
+            -- 오류 로그 기록
+            INSERT INTO system_logs (
+                log_type,
+                message,
+                created_at
+            ) VALUES (
+                'AUTO_RETURN_ERROR',
+                '자동 반납 처리 중 오류 발생: ' || SQLERRM,
+                SYSTIMESTAMP
+            );
+            COMMIT;
+    END AUTO_RETURN_OVERDUE_BOOKS;
+
 END loan_package;  -- 여기서 패키지 바디 전체가 끝남!
+/
+
+-- loans 테이블 INSERT 트리거
+CREATE OR REPLACE TRIGGER loans_insert_trigger
+AFTER INSERT ON loans
+FOR EACH ROW
+DECLARE
+    v_total_mileage NUMBER;
+    v_log_id reading_log.log_id%TYPE;
+BEGIN
+    -- 사용자의 총 마일리지 조회
+    SELECT mileage INTO v_total_mileage
+    FROM users
+    WHERE user_id = :NEW.user_id;
+
+    -- reading_log에 저장
+    v_log_id := reading_log_package.save_reading_log(
+        p_user_id => :NEW.user_id,
+        p_book_id => :NEW.book_id,
+        p_borrow_date => :NEW.borrow_date,
+        p_return_date => :NEW.return_date,
+        p_mileage => CASE 
+            WHEN :NEW.status = 'RETURNED' THEN 3  -- 반납된 경우 3점
+            ELSE 0  -- 대출 중인 경우 0점
+        END,
+        p_total_mileage => CASE 
+            WHEN :NEW.status = 'RETURNED' THEN v_total_mileage + 3  -- 반납된 경우 마일리지 추가
+            ELSE v_total_mileage  -- 대출 중인 경우 현재 마일리지
+        END
+    );
+
+    -- 반납된 경우 사용자 마일리지 업데이트
+    IF :NEW.status = 'RETURNED' THEN
+        UPDATE users
+        SET mileage = mileage + 3,
+            updated_at = SYSTIMESTAMP
+        WHERE user_id = :NEW.user_id;
+    END IF;
+END;
 /
