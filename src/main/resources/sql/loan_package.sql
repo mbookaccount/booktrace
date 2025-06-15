@@ -650,7 +650,7 @@ END cancel_reservation;
         p_message OUT VARCHAR2
     ) IS
         v_loan loans%ROWTYPE;
-        v_mileage NUMBER := 3; 
+        v_mileage NUMBER := 3;
         v_total_mileage NUMBER;
         v_log_id reading_log.log_id%TYPE;
     BEGIN
@@ -664,7 +664,7 @@ END cancel_reservation;
             p_message := '이미 반납된 도서입니다.';
             RETURN;
         END IF;
-        
+
         -- 사용자의 총 마일리지 조회
         SELECT mileage INTO v_total_mileage
         FROM users
@@ -721,7 +721,7 @@ END cancel_reservation;
             FROM loans l
             WHERE l.status = 'BORROWED'
             AND l.return_date < SYSTIMESTAMP;
-            
+
         v_result NUMBER;
         v_message VARCHAR2(200);
         v_error_count NUMBER := 0;
@@ -734,7 +734,7 @@ END cancel_reservation;
                     p_result => v_result,
                     p_message => v_message
                 );
-                
+
                 -- 성공 시 커밋
                 COMMIT;
             EXCEPTION
@@ -746,12 +746,12 @@ END cancel_reservation;
                     DBMS_OUTPUT.PUT_LINE('도서 ID: ' || loan_rec.book_id || ' 자동 반납 실패 - ' || SQLERRM);
             END;
         END LOOP;
-        
+
         -- 전체 처리 결과 출력
         IF v_error_count > 0 THEN
             DBMS_OUTPUT.PUT_LINE('총 ' || v_error_count || '건의 도서 반납 처리 중 오류가 발생했습니다.');
         END IF;
-        
+
     EXCEPTION
         WHEN OTHERS THEN
             ROLLBACK;
@@ -760,43 +760,4 @@ END cancel_reservation;
     END AUTO_RETURN_OVERDUE_BOOKS;
 
 END loan_package;  -- 여기서 패키지 바디 전체가 끝남!
-/
-
--- loans 테이블 INSERT 트리거
-CREATE OR REPLACE TRIGGER loans_insert_trigger
-AFTER INSERT ON loans
-FOR EACH ROW
-DECLARE
-    v_total_mileage NUMBER;
-    v_log_id reading_log.log_id%TYPE;
-BEGIN
-    -- 사용자의 총 마일리지 조회
-    SELECT mileage INTO v_total_mileage
-    FROM users
-    WHERE user_id = :NEW.user_id;
-
-    -- reading_log에 저장
-    v_log_id := reading_log_package.save_reading_log(
-        p_user_id => :NEW.user_id,
-        p_book_id => :NEW.book_id,
-        p_borrow_date => :NEW.borrow_date,
-        p_return_date => :NEW.return_date,
-        p_mileage => CASE
-            WHEN :NEW.status = 'RETURNED' THEN 3  -- 반납된 경우 3점
-            ELSE 0  -- 대출 중인 경우 0점
-        END,
-        p_total_mileage => CASE
-            WHEN :NEW.status = 'RETURNED' THEN v_total_mileage + 3  -- 반납된 경우 마일리지 추가
-            ELSE v_total_mileage  -- 대출 중인 경우 현재 마일리지
-        END
-    );
-
-    -- 반납된 경우 사용자 마일리지 업데이트
-    IF :NEW.status = 'RETURNED' THEN
-        UPDATE users
-        SET mileage = mileage + 3,
-            updated_at = SYSTIMESTAMP
-        WHERE user_id = :NEW.user_id;
-    END IF;
-END;
 /
