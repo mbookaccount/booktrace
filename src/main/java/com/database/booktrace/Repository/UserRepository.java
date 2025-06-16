@@ -220,33 +220,17 @@ public class UserRepository  {
         }
     }
 
-    public boolean updateUserPassword(Long userId, String currentPasswordPlain, String newPasswordPlain) {
-        String selectSql = "SELECT password FROM users WHERE user_id = ? AND is_active = 1";
-        String updateSql = "UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?";
+    public boolean updateUserPassword(Long userId, String newPasswordPlain) {
+        String updateSql = "UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND is_active = 1";
 
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement selectStmt = conn.prepareStatement(selectSql)) {
+             PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
 
-            selectStmt.setLong(1, userId);
-            ResultSet rs = selectStmt.executeQuery();
+            updateStmt.setString(1, newPasswordPlain); // 평문 그대로 저장
+            updateStmt.setLong(2, userId);
+            int affectedRows = updateStmt.executeUpdate();
 
-            if (rs.next()) {
-                String storedPassword = rs.getString("password");
-
-                if (!storedPassword.equals(currentPasswordPlain)) {
-                    return false; // 현재 비밀번호가 일치하지 않음
-                }
-
-                try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
-                    updateStmt.setString(1, newPasswordPlain); // 평문 그대로 저장
-                    updateStmt.setLong(2, userId);
-                    updateStmt.executeUpdate();
-                }
-
-                return true;
-            } else {
-                return false;
-            }
+            return affectedRows > 0;
 
         } catch (SQLException e) {
             throw new RuntimeException("Error updating user password", e);
